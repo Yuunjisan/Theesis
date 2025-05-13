@@ -1,0 +1,7 @@
+Summary of Approximation Errors:
+Sample Size | Mean Absolute Error | Max Absolute Error
+------------------------------------------------------------
+         10 |            16.4150 |           72.8688
+         50 |             6.3029 |           48.0657
+        100 |             4.3835 |           40.0518
+       1000 |             1.3807 |           19.9594
