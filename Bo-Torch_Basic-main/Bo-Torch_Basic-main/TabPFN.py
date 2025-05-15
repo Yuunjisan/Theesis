@@ -29,9 +29,13 @@ def generate_tabpfn_plot(n_samples, softmax_temp, n_estimators, save_dir, xi=Non
     # Use provided samples or generate new ones
     if xi is None or fi is None:
         # Sample points using Latin Hypercube Sampling
-        samples_normalized = lhs(1, samples=n_samples)
+        random_state = np.random.RandomState(42)  # Use fixed seed 42
+        # Use the random_state parameter in lhs function (requires pyDOE2)
+        # If using original pyDOE which doesn't have random_state param:
+        np.random.seed(42)  # Set seed right before LHS call
+        samples_normalized = lhs(1, samples=n_samples, criterion="center")
         xi = lb + (ub - lb) * samples_normalized
-        fi = f(xi).ravel()  # Observations
+        fi = f(xi).ravel()
 
     # Create and fit the TabPFN model
     model = TabPFNRegressor(n_estimators=n_estimators, softmax_temperature=softmax_temp)
@@ -44,6 +48,9 @@ def generate_tabpfn_plot(n_samples, softmax_temp, n_estimators, save_dir, xi=Non
     predictions = model.predict(X_pred, output_type="main")
     mean = predictions["mean"]
     quantiles = predictions["quantiles"]
+    
+    # Calculate median (which is quantile at 0.5 - index 4)
+    median = quantiles[4]
 
     # Plot the results
     plt.figure(figsize=(10, 6))
@@ -67,6 +74,9 @@ def generate_tabpfn_plot(n_samples, softmax_temp, n_estimators, save_dir, xi=Non
 
     # Plot the predicted mean
     plt.plot(X_pred, mean, color='darkorange', label='TabPFN mean')
+    
+    # Plot the predicted median
+    plt.plot(X_pred, median, color='green', linestyle='--', label='TabPFN median')
 
     # Plot training data
     plt.scatter(xi, fi, color='navy', label='Training points')
@@ -90,9 +100,9 @@ def generate_tabpfn_plot(n_samples, softmax_temp, n_estimators, save_dir, xi=Non
 plots_dir = ensure_dir("tabpfn_plots")
 
 # Define sample sizes and temperatures to test
-sample_sizes = [10]
-temperatures = [1]
-n_estimators = [16,32,64,128,256]
+sample_sizes = [5]
+temperatures = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+n_estimators = [16]
 
 # Calculate global y-axis limits based on the true function
 lb = -6.0
@@ -105,7 +115,8 @@ y_max = 60   # Match GP plot range
 # Generate plots for each combination
 for n_samples in sample_sizes:
     # Generate samples once for each sample size
-    samples_normalized = lhs(1, samples=n_samples)
+    np.random.seed(42)
+    samples_normalized = lhs(1, samples=n_samples, criterion="center")
     xi = lb + (ub - lb) * samples_normalized
     fi = f(xi).ravel()
     
