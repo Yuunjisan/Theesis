@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 17, 
+	"function_name": "Schaffers10", 
+	"maximization": false, 
+	"algorithm": {"name": "TabPFN BO Run 1", "info": "TabPFN-BoTorch Implementation"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 7,
+		"path": "data_f17_Schaffers10/IOHprofiler_f17_DIM7.dat",
+		"runs": [
+			{"instance": 1, "evals": 200, "best": {"evals": 163, "y": 3.61544452042147, "x": [4.917481290176511, 3.684664722532034, -0.8041065465658903, 0.8586760330945253, 2.0996901486068964, -1.56712400726974, 2.245220700278878]}}
+		]}
+	]
+}

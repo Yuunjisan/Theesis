@@ -38,7 +38,7 @@ def generate_tabpfn_plot(n_samples, softmax_temp, n_estimators, save_dir, xi=Non
         fi = f(xi).ravel()
 
     # Create and fit the TabPFN model
-    model = TabPFNRegressor(n_estimators=n_estimators, softmax_temperature=softmax_temp)
+    model = TabPFNRegressor(n_estimators=n_estimators, softmax_temperature=softmax_temp, fit_mode="fit_preprocessors")
     model.fit(xi, fi)
 
     # Define points for predictions (fine grid for smooth visualization)

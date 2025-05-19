@@ -9,7 +9,7 @@ import os
 from torch import Tensor
 from botorch.models import SingleTaskGP
 from botorch.models.transforms.input import Normalize
-from botorch.acquisition.analytic import ExpectedImprovement, ProbabilityOfImprovement, UpperConfidenceBound, AnalyticAcquisitionFunction
+from botorch.acquisition.analytic import ExpectedImprovement, ProbabilityOfImprovement, UpperConfidenceBound, AnalyticAcquisitionFunction, LogExpectedImprovement
 from botorch.optim import optimize_acqf
 from botorch.models.transforms.outcome import Standardize
 from gpytorch.kernels import MaternKernel
@@ -21,22 +21,31 @@ from gpytorch.constraints import GreaterThan
 
 ALLOWED_ACQUISITION_FUNCTION_STRINGS:tuple = ("expected_improvement",
                                               "probability_of_improvement",
-                                              "upper_confidence_bound")
+                                              "upper_confidence_bound",
+                                              "log_expected_improvement")
 
 ALLOWED_SHORTHAND_ACQUISITION_FUNCTION_STRINGS:dict = {"EI":"expected_improvement",
                                                        "PI":"probability_of_improvement",
-                                                       "UCB":"upper_confidence_bound"}
+                                                       "UCB":"upper_confidence_bound",
+                                                       "LogEI":"log_expected_improvement"}
 
 
 class Vanilla_BO(AbstractBayesianOptimizer):
     def __init__(self, budget, n_DoE=0, acquisition_function:str="expected_improvement",
-                 random_seed:int=43,**kwargs):
+                 random_seed:int=43, **kwargs):
 
         # Call the superclass
         super().__init__(budget, n_DoE, random_seed, **kwargs)
 
-        # Check the defaults
-        device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
+        # Get device from kwargs or use default
+        device_str = kwargs.get("device", "cuda" if torch.cuda.is_available() else "cpu")
+        
+        # Parse device string to torch.device
+        if device_str == "auto":
+            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            device = torch.device(device_str)
+            
         dtype = torch.double
         smoke_test = os.environ.get("SMOKE_TEST")
 
@@ -203,8 +212,8 @@ class Vanilla_BO(AbstractBayesianOptimizer):
     @acquistion_function_name.setter
     def acquistion_function_name(self, new_name:str)->None:
         
-        # Remove some spaces
-        new_name = new_name.strip()
+        # Remove some spaces and convert to lower case
+        new_name = new_name.strip().lower()
         
         # Start with a dummy variable
         dummy_var:str = ""
@@ -214,10 +223,10 @@ class Vanilla_BO(AbstractBayesianOptimizer):
             # Assign the name
             dummy_var = ALLOWED_SHORTHAND_ACQUISITION_FUNCTION_STRINGS[new_name]
         else:
-            if new_name.lower() in ALLOWED_ACQUISITION_FUNCTION_STRINGS:
+            if new_name in ALLOWED_ACQUISITION_FUNCTION_STRINGS:
                 dummy_var = new_name
             else:
-                raise ValueError("Oddly defined name")
+                raise ValueError(f"Invalid acquisition function name: {new_name}. Must be one of {ALLOWED_ACQUISITION_FUNCTION_STRINGS}")
         
         self.__acquisition_function_name = dummy_var
         # Run to set up the acquisition function subclass
@@ -231,6 +240,8 @@ class Vanilla_BO(AbstractBayesianOptimizer):
             self.__acq_func_class = ProbabilityOfImprovement
         elif self.__acquisition_function_name == ALLOWED_ACQUISITION_FUNCTION_STRINGS[2]:
             self.__acq_func_class = UpperConfidenceBound
+        elif self.__acquisition_function_name == ALLOWED_ACQUISITION_FUNCTION_STRINGS[3]:
+            self.__acq_func_class = LogExpectedImprovement
     
     @property
     def acquisition_function_class(self)->Callable:

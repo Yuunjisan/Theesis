@@ -14,7 +14,7 @@ import pandas as pd
 # BoTorch imports
 from botorch.models import SingleTaskGP
 from botorch.models.transforms.input import Normalize
-from botorch.acquisition.analytic import LogExpectedImprovement, ProbabilityOfImprovement, UpperConfidenceBound
+from botorch.acquisition.analytic import ExpectedImprovement, ProbabilityOfImprovement, UpperConfidenceBound
 from botorch.models.transforms.outcome import Standardize
 from gpytorch.kernels import MaternKernel
 
@@ -126,7 +126,7 @@ class VisualizationBO(Vanilla_BO):
     
     def _setup_acquisition_function(self):
         """Set up the acquisition function for the current iteration"""
-        self.acquisition_function = LogExpectedImprovement(
+        self.acquisition_function = ExpectedImprovement(
             model=self._Vanilla_BO__model_obj, 
             best_f=self.current_best, 
             maximize=self.maximisation
