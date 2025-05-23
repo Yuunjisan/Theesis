@@ -35,7 +35,7 @@ class VisualizationBO(Vanilla_BO):
     and acquisition function during optimization.
     """
     def __init__(self, budget, n_DoE=0, acquisition_function="expected_improvement", 
-                 random_seed=43, save_plots=True, plots_dir="bo_visualizations", **kwargs):
+                 random_seed=42, save_plots=True, plots_dir="bo_visualizations", **kwargs):
         super().__init__(budget, n_DoE, acquisition_function, random_seed, **kwargs)
         
         # Visualization settings
@@ -435,5 +435,5 @@ if __name__ == "__main__":
         run_1d_visualization_bo(
             acquisition_function=acq_func,
             budget=25,
-            n_DoE=5
+            n_DoE=4
         ) 

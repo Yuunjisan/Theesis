@@ -11,7 +11,7 @@ from Algorithms import Vanilla_BO
 from Algorithms.BayesianOptimization.TabPFN_BO.TabPFN_BO import TabPFN_BO
 
 # Choose which algorithm to run: "vanilla" or "tabpfn"
-ALGORITHM = "tabpfn"  # Change this to "tabpfn" to run the TabPFN_BO algorithm
+ALGORITHM = "vanilla"  # Change this to "tabpfn" to run the TabPFN_BO algorithm
 # Choose which acquisition function to use: "expected_improvement", "probability_of_improvement", "upper_confidence_bound", or "log_expected_improvement"
 ACQUISITION_FUNCTION = "expected_improvement"
 
@@ -519,9 +519,9 @@ if __name__ == "__main__":
     try:
         # Parameters
         problem_id = 17
-        dimension = 7
-        n_runs = 10
-        budget = 200  # Increased from 100 to allow for optimization iterations after DoE
+        dimension = 40
+        n_runs = 5
+        budget = 150  # Increased from 100 to allow for optimization iterations after DoE
         instance = 1
         fit_mode = "fit_with_cache"
         

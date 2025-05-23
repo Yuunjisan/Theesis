@@ -34,7 +34,7 @@ class TabPFNSurrogateModel(Model):
         train_X: np.ndarray,
         train_Y: np.ndarray,
         n_estimators: int = 16,
-        fit_mode: str = "fit_preprocessors",
+        fit_mode: str = "fit_with_cache",
         device: str = "auto"
     ):
         super().__init__()
@@ -145,8 +145,19 @@ class TabPFNSurrogateModel(Model):
             scale_tril=std_out.unsqueeze(-1)  # Make scale_tril have shape [..., q, 1, 1]
         )
     
-    def condition_on_observations(self, X: Tensor, Y: Tensor, **kwargs) -> Model:
-        """Update the model with new observations."""
+    def condition_on_observations(self, X: Tensor, Y: Tensor, update_in_place: bool = False, verbose: bool = False, **kwargs) -> Model:
+        """Update the model with new observations.
+        
+        Args:
+            X: New input points
+            Y: New observations
+            update_in_place: If True, update this model in-place instead of creating a new one (recommended for performance)
+            verbose: If True, print update information
+            **kwargs: Additional parameters
+            
+        Returns:
+            Updated model (self if update_in_place=True, otherwise a new model)
+        """
         # Handle various possible tensor shapes for X and Y
         if X.dim() > 2:
             # Handle batched inputs: squeeze out the q dimension
@@ -168,19 +179,34 @@ class TabPFNSurrogateModel(Model):
         new_train_X = torch.cat([self.train_X, X_flat], dim=0).cpu().numpy()
         new_train_Y = torch.cat([self.train_Y.view(-1), Y_flat], dim=0).cpu().numpy()
         
-        # Create a new model with updated data
-        return TabPFNSurrogateModel(
-            train_X=new_train_X,
-            train_Y=new_train_Y,
-            n_estimators=self.n_estimators,
-            fit_mode=self.fit_mode,
-            device=self.device
-        )
+        if update_in_place:
+            # Update this model in-place
+            if verbose:
+                print(f"Updating TabPFN model in-place: {len(self.train_X)} -> {len(new_train_X)} points")
+            
+            self.train_X = torch.tensor(new_train_X, dtype=torch.float64)
+            self.train_Y = torch.tensor(new_train_Y, dtype=torch.float64).view(-1, 1)
+            
+            # Re-fit the TabPFN model
+            self.model.fit(new_train_X, new_train_Y)
+            return self
+        else:
+            # Create a new model with updated data (original behavior - less efficient)
+            if verbose:
+                print(f"Creating new TabPFN model: {len(self.train_X)} -> {len(new_train_X)} points")
+                
+            return TabPFNSurrogateModel(
+                train_X=new_train_X,
+                train_Y=new_train_Y,
+                n_estimators=self.n_estimators,
+                fit_mode=self.fit_mode,
+                device=self.device
+            )
 
 
 class TabPFN_BO(AbstractBayesianOptimizer):
     def __init__(self, budget, n_DoE=0, acquisition_function:str="expected_improvement",
-                 random_seed:int=43, n_estimators:int=16, fit_mode:str="fit_preprocessors", 
+                 random_seed:int=43, n_estimators:int=16, fit_mode:str="fit_with_cache", 
                  device:str="auto", **kwargs):
         """
         Bayesian Optimization using TabPFN as a surrogate model.
@@ -248,28 +274,33 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             # Get next point
             new_x = self.optimize_acqf_and_get_observation()
             
-            # Evaluate function - ensure we have a flat vector
+            # Evaluate function - ensure proper dimensionality
             if new_x.dim() > 2:
                 new_x = new_x.squeeze(1)  # Remove extra dimension if present
             
-            new_x_numpy = new_x.detach().squeeze().numpy()
+            # Properly extract numpy array maintaining all dimensions
+            new_x_numpy = new_x.detach().cpu().numpy()
             
-            # Handle both scalar and vector inputs correctly
-            if new_x_numpy.ndim == 0:  # Handle scalar case
-                new_x_numpy = float(new_x_numpy)
+            # Handle scalar vs vector correctly without dimension reduction
+            if new_x_numpy.ndim == 1 and new_x_numpy.size == 1:  # Handle 1D scalar case
+                new_x_numpy = float(new_x_numpy[0])
                 new_f_eval = float(problem(new_x_numpy))
-            else:  # Handle vector case
-                new_f_eval = float(problem(new_x_numpy))  # Ensure result is a float
+            elif new_x_numpy.ndim == 2 and new_x_numpy.shape[0] == 1:  # Handle single row vector
+                new_x_numpy = new_x_numpy.reshape(-1)  # Convert to 1D array
+                new_f_eval = float(problem(new_x_numpy))
+            else:  # Handle general vector case
+                new_f_eval = float(problem(new_x_numpy.squeeze()))  # Ensure result is a float
             
             # Append evaluations - ensure consistent data types
             self.x_evals.append(new_x_numpy)
             self.f_evals.append(new_f_eval)
             self.number_of_function_evaluations += 1
             
-            # Update model
+            # Update model - now using in-place update for performance
             X_new = new_x
             Y_new = torch.tensor([new_f_eval], dtype=torch.float64).view(1, 1)
-            self.__model_obj = self.__model_obj.condition_on_observations(X=X_new, Y=Y_new)
+            # Using in-place update significantly improves performance by avoiding recreating the model
+            self.__model_obj.condition_on_observations(X=X_new, Y=Y_new, update_in_place=True, verbose=self.verbose)
             
             # Assign new best
             self.assign_new_best()
@@ -286,8 +317,24 @@ class TabPFN_BO(AbstractBayesianOptimizer):
     
     def _initialize_model(self):
         """Initialize the TabPFN surrogate model with current data."""
-        train_x = np.array(self.x_evals).reshape((-1, self.dimension))
-        train_obj = np.array(self.f_evals).reshape(-1)
+        # Create properly shaped arrays with consistent dimensions
+        # FIXED: Properly handle multi-dimensional inputs without dimensionality reduction
+        if len(self.x_evals) > 0:
+            # Handle the case where inputs might be mixed scalar and array values
+            if np.isscalar(self.x_evals[0]) or (isinstance(self.x_evals[0], np.ndarray) and self.x_evals[0].size == 1):
+                # For scalar inputs, reshape to column vector
+                train_x = np.array([float(x) for x in self.x_evals]).reshape((-1, 1))
+            else:
+                # For vector inputs, preserve all dimensions
+                train_x = np.array([x if isinstance(x, np.ndarray) else np.array(x) for x in self.x_evals])
+                # Ensure consistent shape
+                if train_x.ndim == 1:
+                    train_x = train_x.reshape(-1, 1)
+        else:
+            # Empty dataset case
+            train_x = np.array([]).reshape(0, self.dimension)
+            
+        train_obj = np.array([float(y) for y in self.f_evals]).reshape(-1)
         
         self.__model_obj = TabPFNSurrogateModel(
             train_X=train_x,
@@ -324,7 +371,7 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             print(f"ERROR: Acquisition function optimization FAILED: {e}")
             print("Falling back to random sampling!")
             
-            # Fallback to random sampling - ensure correct shape
+            # Fallback to random sampling - ensure correct shape with proper dimensionality
             lb = self.bounds[:, 0]
             ub = self.bounds[:, 1]
             random_point = lb + np.random.rand(self.dimension) * (ub - lb)

@@ -4,7 +4,7 @@
 	"function_id": 17, 
 	"function_name": "Schaffers10", 
 	"maximization": false, 
-	"algorithm": {"name": "TabPFN BO Run 2", "info": "TabPFN-BoTorch Implementation"},
+	"algorithm": {"name": "Vanilla BO Run 2", "info": "Bo-Torch Implementation"},
 	"attributes": ["evaluations", "raw_y", "raw_y_best"],
 	"scenarios": [
 		{"dimension": 40,
