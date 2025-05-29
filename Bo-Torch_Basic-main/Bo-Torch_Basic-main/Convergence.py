@@ -1,5 +1,6 @@
 r"""
-This script runs Bayesian Optimization and creates convergence plots from the results.
+This script runs a comprehensive publication-quality benchmark comparing Bayesian Optimization algorithms
+on BBOB functions across multiple dimensions, instances, and repetitions.
 """
 
 ### -------------------------------------------------------------
@@ -9,11 +10,6 @@ This script runs Bayesian Optimization and creates convergence plots from the re
 # Algorithm import
 from Algorithms import Vanilla_BO
 from Algorithms.BayesianOptimization.TabPFN_BO.TabPFN_BO import TabPFN_BO
-
-# Choose which algorithm to run: "vanilla" or "tabpfn"
-ALGORITHM = "vanilla"  # Change this to "tabpfn" to run the TabPFN_BO algorithm
-# Choose which acquisition function to use: "expected_improvement", "probability_of_improvement", "upper_confidence_bound", or "log_expected_improvement"
-ACQUISITION_FUNCTION = "expected_improvement"
 
 # Standard libraries
 import os
@@ -27,10 +23,12 @@ plt.style.use('default')  # Reset to default style
 import pandas as pd
 import traceback
 import torch
+import json
+from datetime import datetime
+import time
 
 # Check for GPU availability
-device = "cuda"
-
+device = "cpu"  # Force CPU usage
 
 # IOH Experimenter libraries
 try:
@@ -44,441 +42,349 @@ except Exception as e:
     print(e.args)
 
 ### ---------------------------------------------------------------
-### LOGGER SETUP
+### BENCHMARK CONFIGURATION
 ### ---------------------------------------------------------------
 
-# Define experiment name
-experiment_folder = f"bo-experiment-{ALGORITHM}"
+# BBOB functions to test (can modify this list)
+BBOB_FUNCTIONS = list(range(1, 25))  # Functions 1-24
+DIMENSIONS = [2]  # Test dimensions
+INSTANCES = [1, 2, 3]  # Problem instances
+N_REPETITIONS = 5  # Number of runs with different seeds
+BASE_SEED = 42  # Base seed for reproducibility
 
-# These are the triggers to set how to log data
-triggers = [
-    Each(1),  # Log after every evaluation (for detailed convergence curves)
-    ON_IMPROVEMENT  # Log when there's an improvement
-]
+# Algorithms to compare
+ALGORITHMS = ["vanilla", "tabpfn"]
+ACQUISITION_FUNCTION = "expected_improvement"
 
-# Set algorithm name based on choice
-algorithm_name = "Vanilla BO" if ALGORITHM == "vanilla" else "TabPFN BO"
-algorithm_info = "Bo-Torch Implementation" if ALGORITHM == "vanilla" else "TabPFN-BoTorch Implementation"
+# Budget configuration (adaptive based on dimension)
+def get_budget(dimension):
+    """Calculate budget based on dimension"""
+    return 10 * dimension + 50  # Budget = 10*D + 50
 
-logger = Analyzer(
-    triggers=triggers,
-    root=os.getcwd(),
-    folder_name=experiment_folder,
-    algorithm_name=algorithm_name,
-    algorithm_info=algorithm_info,
-    additional_properties=[logger_lib.property.RAWYBEST],
-    store_positions=True
-)
+def get_n_doe(dimension):
+    """Calculate number of initial design points based on dimension"""
+    return min(2 * dimension, 20)  # Cap at 20 initial points
 
-# Modify the run_optimization function to better handle this issue
+### ---------------------------------------------------------------
+### EXPERIMENT MANAGEMENT
+### ---------------------------------------------------------------
 
-def run_optimization(problem_id=1, dimension=2, budget=None, n_runs=5, instance=1, 
-                   fit_mode="fit_with_cache", device="cuda", memory_saving_mode = False):
+class BenchmarkManager:
+    """Manages the comprehensive benchmark experiment"""
+    
+    def __init__(self, base_output_dir="bbob_benchmark_results"):
+        self.base_output_dir = Path(base_output_dir)
+        self.base_output_dir.mkdir(exist_ok=True)
+        
+        # Create dimension-based folder structure
+        for dim in DIMENSIONS:
+            dim_dir = self.base_output_dir / f"dim_{dim}"
+            dim_dir.mkdir(exist_ok=True)
+            
+            # Create algorithm subdirectories
+            for algorithm in ALGORITHMS:
+                algo_dir = dim_dir / algorithm
+                algo_dir.mkdir(exist_ok=True)
+        
+        # Create summary directory
+        self.summary_dir = self.base_output_dir / "summary_plots"
+        self.summary_dir.mkdir(exist_ok=True)
+        
+        # Initialize runtime tracking
+        self.runtime_data = {
+            'vanilla': [],
+            'tabpfn': []
+        }
+        self.runtime_summary = {}
+        
+        # Initialize experiment log
+        self.experiment_log = {
+            "start_time": datetime.now().isoformat(),
+            "configuration": {
+                "bbob_functions": BBOB_FUNCTIONS,
+                "dimensions": DIMENSIONS,
+                "instances": INSTANCES,
+                "n_repetitions": N_REPETITIONS,
+                "algorithms": ALGORITHMS,
+                "acquisition_function": ACQUISITION_FUNCTION
+            },
+            "results": {}
+        }
+        
+        print(f"Benchmark results will be saved to: {self.base_output_dir}")
+        print(f"Total experiments to run: {len(BBOB_FUNCTIONS) * len(DIMENSIONS) * len(INSTANCES) * N_REPETITIONS * len(ALGORITHMS)}")
+
+    def add_runtime_result(self, result):
+        """Add runtime result for analysis"""
+        if result.get('success', False):
+            algorithm = result['algorithm']
+            if algorithm in self.runtime_data:
+                self.runtime_data[algorithm].append({
+                    'runtime': result['runtime_seconds'],
+                    'problem_id': result['problem_id'],
+                    'dimension': result['dimension'],
+                    'instance': result['instance'],
+                    'repetition': result['repetition'],
+                    'final_regret': result['final_regret']
+                })
+
+    def calculate_runtime_summary(self):
+        """Calculate runtime statistics for all algorithms"""
+        self.runtime_summary = {}
+        
+        for algorithm, data in self.runtime_data.items():
+            if data:
+                runtimes = [d['runtime'] for d in data]
+                self.runtime_summary[algorithm] = {
+                    'total_runtime': sum(runtimes),
+                    'mean_runtime': np.mean(runtimes),
+                    'std_runtime': np.std(runtimes),
+                    'median_runtime': np.median(runtimes),
+                    'min_runtime': min(runtimes),
+                    'max_runtime': max(runtimes),
+                    'n_runs': len(runtimes),
+                    'speedup_vs_baseline': None  # Will be calculated
+                }
+        
+        # Calculate speedup (assume vanilla is baseline)
+        if 'vanilla' in self.runtime_summary and 'tabpfn' in self.runtime_summary:
+            vanilla_mean = self.runtime_summary['vanilla']['mean_runtime']
+            tabpfn_mean = self.runtime_summary['tabpfn']['mean_runtime']
+            
+            self.runtime_summary['tabpfn']['speedup_vs_vanilla'] = vanilla_mean / tabpfn_mean
+            self.runtime_summary['vanilla']['speedup_vs_vanilla'] = 1.0
+
+    def print_runtime_summary(self):
+        """Print comprehensive runtime comparison"""
+        print("\n" + "="*80)
+        print("🕐 RUNTIME ANALYSIS SUMMARY")
+        print("="*80)
+        
+        if not self.runtime_summary:
+            print("No runtime data available.")
+            return
+        
+        # Table format
+        print(f"{'Algorithm':<15} {'Total (s)':<12} {'Mean (s)':<12} {'Std (s)':<12} {'Speedup':<10}")
+        print("-" * 70)
+        
+        for algorithm, stats in self.runtime_summary.items():
+            speedup = stats.get('speedup_vs_vanilla', '-')
+            speedup_str = f"{speedup:.2f}x" if isinstance(speedup, float) else speedup
+            
+            print(f"{algorithm.title():<15} "
+                  f"{stats['total_runtime']:<12.1f} "
+                  f"{stats['mean_runtime']:<12.3f} "
+                  f"{stats['std_runtime']:<12.3f} "
+                  f"{speedup_str:<10}")
+        
+        # Detailed statistics
+        print(f"\nDetailed Statistics:")
+        for algorithm, stats in self.runtime_summary.items():
+            print(f"\n{algorithm.title()} BO:")
+            print(f"  • Total runtime:   {stats['total_runtime']:.1f} seconds")
+            print(f"  • Runs completed:  {stats['n_runs']}")
+            print(f"  • Mean per run:    {stats['mean_runtime']:.3f} ± {stats['std_runtime']:.3f} seconds")
+            print(f"  • Median per run:  {stats['median_runtime']:.3f} seconds")
+            print(f"  • Range:           {stats['min_runtime']:.3f} - {stats['max_runtime']:.3f} seconds")
+            
+            if 'speedup_vs_vanilla' in stats and stats['speedup_vs_vanilla'] != 1.0:
+                speedup = stats['speedup_vs_vanilla']
+                if speedup > 1:
+                    print(f"  • 🚀 {speedup:.2f}x FASTER than Vanilla GP")
+                else:
+                    print(f"  • 🐌 {1/speedup:.2f}x SLOWER than Vanilla GP")
+
+def run_single_optimization(algorithm, problem_id, dimension, instance, repetition, 
+                          output_dir, fit_mode="fit_with_cache"):
     """
-    Run Bayesian Optimization on the specified problem multiple times.
-    Results are saved to .dat files in the experiment folder.
+    Run a single optimization experiment.
     
     Args:
-        problem_id: IOH problem ID
+        algorithm: "vanilla" or "tabpfn"
+        problem_id: BBOB function ID (1-24)
         dimension: Problem dimension
-        budget: Evaluation budget (default: 50*dimension or 200, whichever is smaller)
-        n_runs: Number of independent runs
-        instance: Problem instance
-        fit_mode: Mode for TabPFN fitting ("low_memory", "fit_preprocessors", or "fit_with_cache")
-        device: Device to use for computation ("auto", "cpu", or "cuda")
+        instance: Problem instance (1-3)
+        repetition: Repetition number (1-N_REPETITIONS)
+        output_dir: Directory to save results
+        fit_mode: TabPFN fit mode
+    
+    Returns:
+        dict: Results summary
     """
-    # Create a separate logger for each run to avoid conflicts
-    for run in range(1, n_runs+1):
-        print(f"\nStarting run {run}/{n_runs} for problem {problem_id}, dimension {dimension}")
+    # Calculate seed for reproducibility
+    seed = BASE_SEED + repetition
+    
+    # Set up problem
+    problem = get_problem(problem_id, instance=instance, dimension=dimension)
+    
+    # Calculate budget and DoE
+    budget = get_budget(dimension)
+    n_DoE = get_n_doe(dimension)
+    
+    # Create unique logger for this run
+    run_name = f"{algorithm}_f{problem_id}_dim{dimension}_inst{instance}_rep{repetition}"
+    logger_dir = output_dir / run_name
+    
+    # Set up logger
+    triggers = [Each(1), ON_IMPROVEMENT]
+    run_logger = Analyzer(
+        triggers=triggers,
+        root=str(logger_dir.parent),
+        folder_name=logger_dir.name,
+        algorithm_name=f"{algorithm.title()} BO",
+        algorithm_info=f"Function {problem_id}, Dim {dimension}, Instance {instance}, Rep {repetition}",
+        additional_properties=[logger_lib.property.RAWYBEST],
+        store_positions=True
+    )
+    
+    problem.attach_logger(run_logger)
+    
+    try:
+        # Common parameters
+        common_params = {
+            'budget': budget,
+            'n_DoE': n_DoE,
+            'acquisition_function': ACQUISITION_FUNCTION,
+            'random_seed': seed,
+            'maximisation': False,
+            'verbose': False,  # Set to False for cleaner output during benchmark
+            'device': "cpu"
+        }
         
-        try:
-            # Set up problem instance
-            problem = get_problem(problem_id, instance=run, dimension=dimension)
-            
-            # Set algorithm name based on global choice
-            run_algorithm_name = "Vanilla BO" if ALGORITHM == "vanilla" else "TabPFN BO"
-            run_algorithm_info = "Bo-Torch Implementation" if ALGORITHM == "vanilla" else "TabPFN-BoTorch Implementation"
-            
-            # Create a unique logger for this run to avoid potential conflicts
-            run_logger = Analyzer(
-                triggers=triggers,
-                root=os.getcwd(),
-                folder_name=f"{experiment_folder}/run_{run}",  # Separate subfolder
-                algorithm_name=f"{run_algorithm_name} Run {run}",
-                algorithm_info=run_algorithm_info,
-                additional_properties=[logger_lib.property.RAWYBEST],
-                store_positions=True
+        # Create optimizer based on algorithm
+        if algorithm == "vanilla":
+            optimizer = Vanilla_BO(**common_params)
+        elif algorithm == "tabpfn":
+            optimizer = TabPFN_BO(
+                **common_params,
+                n_estimators=8,  # Conservative for large benchmark
+                fit_mode=fit_mode
             )
-            
-            # Attach the run-specific logger
-            problem.attach_logger(run_logger)
-            
-            # Calculate n_DoE based on dimension
-            n_DoE = min(3*problem.meta_data.n_variables, 100)  # Cap n_DoE at 100 points
-            
-            # Set budget based on dimension if not provided, ensuring it's greater than n_DoE
-            if budget is None:
-                actual_budget = max(n_DoE + 50, min(200, 50*problem.meta_data.n_variables))
-            else:
-                # Make sure budget is at least n_DoE + 10 to allow for optimization iterations
-                actual_budget = max(budget, n_DoE + 10)
-                
-            # Common parameters for both optimizers
-            acquisition_function = ACQUISITION_FUNCTION  # Use the global acquisition function
-            random_seed = 15+run  # Different seed for each run
-            verbose = True
-            DoE_parameters = {'criterion': "center", 'iterations': 1000}
-            optimization_parameters = {
-                'num_restarts': 10,  # Increase number of restart points
-                'raw_samples': 512,  # Increase number of candidates
-                'maxiter': 500,  # Allow more iterations for optimization
-                'batch_limit': 50,  # Limit batch size for better conditioning
-                'options': {'maxiter': 200}  # scipy.optimize options
-            }
-            
-            # Set up the optimizer based on the selected algorithm
-            if ALGORITHM == "vanilla":
-                # Set up the Vanilla BO with more robust optimization settings
-                optimizer = Vanilla_BO(
-                    budget=actual_budget,
-                    n_DoE=n_DoE,
-                    acquisition_function=acquisition_function,
-                    random_seed=random_seed,
-                    maximisation=False,
-                    verbose=verbose,
-                    DoE_parameters=DoE_parameters,
-                    optimization_parameters=optimization_parameters,
-                    device=device  # Use the detected device
-                )
-            else:
-                # Set up the TabPFN BO
-                optimizer = TabPFN_BO(
-                    budget=actual_budget,
-                    n_DoE=n_DoE,
-                    acquisition_function=acquisition_function,
-                    random_seed=random_seed,
-                    n_estimators=16,  # Number of TabPFN estimators
-                    fit_mode=fit_mode,  # Use the provided fit_mode
-                    device=device,  # Use the detected device
-                    memory_saving_mode=memory_saving_mode,
-                    maximisation=False,
-                    verbose=verbose,
-                    DoE_parameters=DoE_parameters,
-                    optimization_parameters=optimization_parameters
-                )
-            
-            # Watch the optimizer with the run-specific logger
-            run_logger.watch(optimizer, "acquisition_function_name")
-            
-            # Run optimization
-            optimizer(problem=problem)
-            
-            print(f"Run {run} completed successfully.")
-            print(f"  - Final regret: {problem.state.current_best.y - problem.optimum.y:.6e}")
-            print(f"  - Number of evaluations: {len(optimizer.f_evals)}")
-            
-            # Close the run-specific logger
-            run_logger.close()
-            
-        except Exception as e:
-            print(f"ERROR: Run {run} failed with error: {e}")
-            import traceback
-            traceback.print_exc()
-            continue
-
-def scientific_format(x, pos=None):
-    """Format numbers in scientific notation: a×10^b format"""
-    if x == 0:
-        return '0'
-    exp = int(np.floor(np.log10(abs(x))))
-    coef = x/10**exp
-    return f'{coef:.1f}×10^{exp}'
-
-def plot_convergence(convergence_data, problem_id, dimension, save_path=None, algorithm_name="Vanilla BO"):
-    """
-    Plot convergence curves from optimization runs.
-    """
-    # Clear any existing plots
-    plt.clf()
-    plt.close('all')
+        else:
+            raise ValueError(f"Unknown algorithm: {algorithm}")
+        
+        # Watch the optimizer
+        run_logger.watch(optimizer, "acquisition_function_name")
+        
+        # Run optimization
+        start_time = time.time()
+        optimizer(problem=problem)
+        end_time = time.time()
+        
+        # Collect results
+        result = {
+            'algorithm': algorithm,
+            'problem_id': problem_id,
+            'dimension': dimension,
+            'instance': instance,
+            'repetition': repetition,
+            'seed': seed,
+            'budget': budget,
+            'n_DoE': n_DoE,
+            'final_best': float(optimizer.current_best),
+            'final_regret': float(problem.state.current_best.y - problem.optimum.y),
+            'n_evaluations': len(optimizer.f_evals),
+            'runtime_seconds': end_time - start_time,
+            'success': True
+        }
+        
+        print(f"✓ {run_name}: Final regret = {result['final_regret']:.6e} in {result['runtime_seconds']:.1f}s")
+        
+    except Exception as e:
+        print(f"✗ {run_name}: FAILED - {str(e)}")
+        result = {
+            'algorithm': algorithm,
+            'problem_id': problem_id,
+            'dimension': dimension,
+            'instance': instance,
+            'repetition': repetition,
+            'seed': seed,
+            'success': False,
+            'error': str(e)
+        }
     
-    # Sort convergence data by run number
-    convergence_data = sorted(convergence_data, key=lambda x: x['run'])
+    finally:
+        run_logger.close()
     
-    # Create new figure with specific DPI
-    fig = plt.figure(figsize=(12, 7), dpi=100)
-    ax = fig.add_subplot(111)
-    
-    # Set y-axis to log scale
-    ax.set_yscale('log')
-    
-    # Use color cycle for different runs
-    colors = plt.cm.tab10(np.linspace(0, 1, min(10, len(convergence_data))))
-    
-    # Plot individual runs
-    for i, run_data in enumerate(convergence_data):
-        ax.plot(
-            run_data['evals'], 
-            run_data['best_so_far'], 
-            color=colors[i % len(colors)],
-            linewidth=1.5,
-            alpha=0.7,
-            label=f"Run {run_data['run']}"
-        )
-    
-    # Calculate and plot the mean
-    max_length = max(len(data['best_so_far']) for data in convergence_data)
-    mean_values = []
-    
-    for i in range(max_length):
-        values_at_i = [data['best_so_far'][i] if i < len(data['best_so_far']) else data['best_so_far'][-1] 
-                      for data in convergence_data]
-        mean_values.append(np.mean(values_at_i))
-    
-    # Plot mean curve
-    ax.plot(
-        range(1, max_length + 1), 
-        mean_values, 
-        'k-', 
-        linewidth=2.5,
-        label='Mean'
-    )
-    
-    # Calculate reasonable y-axis limits
-    all_values = []
-    for data in convergence_data:
-        all_values.extend(data['best_so_far'])
-    
-    y_min = min(all_values)
-    y_max = max(all_values)
-    
-    # Add some padding in log space
-    log_range = np.log10(y_max) - np.log10(y_min)
-    y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
-    y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
-    
-    # Set axis limits
-    ax.set_ylim(y_min, y_max)
-    
-    # Customize plot
-    ax.set_title(f"{algorithm_name} Convergence - Problem {problem_id}, Dimension {dimension} ({len(convergence_data)} runs)")
-    ax.set_xlabel("Function Evaluations")
-    ax.set_ylabel("Best Function Value")
-    ax.grid(True, which='both', ls='--', alpha=0.5)
-    ax.legend(loc='best')
-    
-    # Adjust layout
-    fig.tight_layout(pad=2.0)
-    
-    # Save or display
-    if save_path:
-        fig.savefig(save_path, format='png', dpi=300, bbox_inches='tight', pad_inches=0.5)
-        print(f"Plot saved to {save_path}")
-    else:
-        plt.show()
-    
-    plt.close(fig)
-    
-    # Print summary statistics
-    final_values = [data['best_so_far'][-1] for data in convergence_data]
-    print(f"\nMean final value: {np.mean(final_values):.6e} ± {np.std(final_values):.6e}")
-    
-    return fig
-
-def plot_convergence_with_error_bands(convergence_data, problem_id, dimension, save_path=None, algorithm_name="Vanilla BO"):
-    """
-    Plot convergence curves with mean and standard error bands.
-    """
-    # Clear any existing plots
-    plt.clf()
-    plt.close('all')
-    
-    # Sort convergence data by run number
-    convergence_data = sorted(convergence_data, key=lambda x: x['run'])
-    
-    # Create new figure with specific DPI
-    fig = plt.figure(figsize=(12, 7), dpi=100)
-    ax = fig.add_subplot(111)
-    
-    # Set y-axis to log scale
-    ax.set_yscale('log')
-    
-    # Calculate mean and standard error at each evaluation point
-    max_length = max(len(data['best_so_far']) for data in convergence_data)
-    mean_values = []
-    stderr_values = []
-    
-    for i in range(max_length):
-        values_at_i = [data['best_so_far'][i] if i < len(data['best_so_far']) else data['best_so_far'][-1] 
-                      for data in convergence_data]
-        mean_values.append(np.mean(values_at_i))
-        stderr_values.append(np.std(values_at_i) / np.sqrt(len(values_at_i)))
-    
-    # Generate x-axis values
-    x_values = range(1, max_length + 1)
-    
-    # Plot mean curve
-    ax.plot(
-        x_values, 
-        mean_values, 
-        'b-', 
-        linewidth=2.0,
-        label='Mean'
-    )
-    
-    # Calculate upper and lower bounds for error bands
-    upper_bound = [mean + stderr for mean, stderr in zip(mean_values, stderr_values)]
-    lower_bound = [mean - stderr for mean, stderr in zip(mean_values, stderr_values)]
-    
-    # Plot standard error bands
-    ax.fill_between(
-        x_values,
-        lower_bound,
-        upper_bound,
-        color='blue',
-        alpha=0.2,
-        label='Standard Error'
-    )
-    
-    # Calculate reasonable y-axis limits
-    all_values = []
-    for data in convergence_data:
-        all_values.extend(data['best_so_far'])
-    
-    y_min = min(all_values)
-    y_max = max(all_values)
-    
-    # Add some padding in log space
-    log_range = np.log10(y_max) - np.log10(y_min)
-    y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
-    y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
-    
-    # Set axis limits
-    ax.set_ylim(y_min, y_max)
-    
-    # Customize plot
-    ax.set_title(f"{algorithm_name} Convergence with Error Bands - Problem {problem_id}, Dimension {dimension} ({len(convergence_data)} runs)")
-    ax.set_xlabel("Function Evaluations")
-    ax.set_ylabel("Best Function Value")
-    ax.grid(True, which='both', ls='--', alpha=0.5)
-    ax.legend(loc='best')
-    
-    # Adjust layout
-    fig.tight_layout(pad=2.0)
-    
-    # Save or display
-    if save_path:
-        error_band_path = str(save_path).replace('.png', '_error_bands.png')
-        fig.savefig(error_band_path, format='png', dpi=300, bbox_inches='tight', pad_inches=0.5)
-        print(f"Error band plot saved to {error_band_path}")
-    else:
-        plt.show()
-    
-    plt.close(fig)
-    
-    # Print summary statistics
-    final_values = [data['best_so_far'][-1] for data in convergence_data]
-    print(f"\nMean final value: {np.mean(final_values):.6e} ± {np.std(final_values)/np.sqrt(len(final_values)):.6e} (SE)")
-    
-    return fig
-
-def read_dat_file(file_path):
-    """
-    Read a .dat file from IOHprofiler and return a pandas DataFrame
-    """
-    df = pd.read_csv(file_path, delimiter=' ', skipinitialspace=True)
-    return df
+    return result
 
 def process_dat_file(file_path):
     """
-    Process a .dat file and return data in the format expected by plot_convergence
+    Process a .dat file and return data in the format expected by plot_convergence.
+    Same function as in OG_convergence.py.
     """
-    df = read_dat_file(file_path)
+    df = pd.read_csv(file_path, delimiter=' ', skipinitialspace=True)
     
-    # Extract run number from directory path
-    run_number = int(str(file_path).split("run_")[-1].split("\\")[0].split("/")[0])
-    
-    # Calculate distance from optimum if position columns exist
-    x_cols = [col for col in df.columns if col.startswith('x')]
-    final_distance = np.linalg.norm(df[x_cols].iloc[-1].values) if len(x_cols) >= 2 else 0
+    # Extract run number from directory or filename
+    run_number = 1  # Default run number for benchmark
     
     # Create the data structure for plotting
     run_data = {
         'run': run_number,
         'evals': df['evaluations'].tolist(),
         'best_so_far': df['raw_y_best'].tolist(),
-        'final_distance': final_distance,
-        'final_regret': df['raw_y_best'].iloc[-1]
+        'final_value': df['raw_y_best'].iloc[-1]
     }
     
     return run_data
 
-def plot_comparison(vanilla_data, tabpfn_data, problem_id, dimension, save_path=None):
+def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, save_path):
     """
-    Plot the mean convergence curves of both Vanilla BO and TabPFN BO on a single plot.
-    
-    Args:
-        vanilla_data: Convergence data for Vanilla BO
-        tabpfn_data: Convergence data for TabPFN BO
-        problem_id: IOH problem ID
-        dimension: Problem dimension
-        save_path: Path to save the plot (optional)
+    Plot comparison between algorithms for a specific function and dimension.
+    Shows only mean convergence curves (no individual runs).
+    Matches the exact format of plot_multi_algorithm_comparison from OG_convergence.py.
     """
-    # Clear any existing plots
     plt.clf()
     plt.close('all')
     
-    # Create new figure with specific DPI
+    # Create new figure with specific DPI (same as OG_convergence.py)
     fig = plt.figure(figsize=(12, 7), dpi=100)
     ax = fig.add_subplot(111)
     
     # Set y-axis to log scale
     ax.set_yscale('log')
     
-    # Calculate mean values for vanilla BO
-    vanilla_max_length = max(len(data['best_so_far']) for data in vanilla_data)
-    vanilla_mean_values = []
+    # Define colors for different algorithms (same as OG_convergence.py)
+    colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
     
-    for i in range(vanilla_max_length):
-        values_at_i = [data['best_so_far'][i] if i < len(data['best_so_far']) else data['best_so_far'][-1] 
-                      for data in vanilla_data]
-        vanilla_mean_values.append(np.mean(values_at_i))
+    # Prepare algorithm data in same format as OG_convergence.py
+    algorithm_data = {}
+    if vanilla_data:
+        algorithm_data["Vanilla BO"] = vanilla_data
+    if tabpfn_data:
+        algorithm_data["TabPFN BO"] = tabpfn_data
     
-    # Calculate mean values for TabPFN BO
-    tabpfn_max_length = max(len(data['best_so_far']) for data in tabpfn_data)
-    tabpfn_mean_values = []
+    # Plot each algorithm (same logic as OG_convergence.py)
+    for i, (algorithm_name, convergence_data) in enumerate(algorithm_data.items()):
+        # Calculate mean values (exact same as OG_convergence.py)
+        max_length = max(len(data['best_so_far']) for data in convergence_data)
+        mean_values = []
+        
+        for j in range(max_length):
+            values_at_j = [data['best_so_far'][j] if j < len(data['best_so_far']) else data['best_so_far'][-1] 
+                          for data in convergence_data]
+            mean_values.append(np.mean(values_at_j))
+        
+        # Plot mean curve (exact same as OG_convergence.py)
+        ax.plot(
+            range(1, max_length + 1), 
+            mean_values, 
+            color=colors[i % len(colors)],
+            linewidth=2.5,
+            label=f'{algorithm_name} Mean ({len(convergence_data)} runs)'
+        )
     
-    for i in range(tabpfn_max_length):
-        values_at_i = [data['best_so_far'][i] if i < len(data['best_so_far']) else data['best_so_far'][-1] 
-                      for data in tabpfn_data]
-        tabpfn_mean_values.append(np.mean(values_at_i))
-    
-    # Plot mean curves
-    ax.plot(
-        range(1, vanilla_max_length + 1), 
-        vanilla_mean_values, 
-        'b-', 
-        linewidth=2.5,
-        label='Vanilla BO Mean'
-    )
-    
-    ax.plot(
-        range(1, tabpfn_max_length + 1), 
-        tabpfn_mean_values, 
-        'r-', 
-        linewidth=2.5,
-        label='TabPFN BO Mean'
-    )
-    
-    # Calculate reasonable y-axis limits
+    # Calculate reasonable y-axis limits from all data (same as OG_convergence.py)
     all_values = []
-    for data in vanilla_data + tabpfn_data:
-        all_values.extend(data['best_so_far'])
+    for convergence_data in algorithm_data.values():
+        for data in convergence_data:
+            all_values.extend(data['best_so_far'])
     
     y_min = min(all_values)
     y_max = max(all_values)
     
-    # Add some padding in log space
+    # Add some padding in log space (same as OG_convergence.py)
     log_range = np.log10(y_max) - np.log10(y_min)
     y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
     y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
@@ -486,196 +392,262 @@ def plot_comparison(vanilla_data, tabpfn_data, problem_id, dimension, save_path=
     # Set axis limits
     ax.set_ylim(y_min, y_max)
     
-    # Customize plot
-    ax.set_title(f"Algorithm Comparison - Problem {problem_id}, Dimension {dimension}")
+    # Customize plot (same as OG_convergence.py)
+    ax.set_title(f"Multi-Algorithm Comparison - Problem {problem_id}, Dimension {dimension}")
     ax.set_xlabel("Function Evaluations")
     ax.set_ylabel("Best Function Value (log scale)")
     ax.grid(True, which='both', ls='--', alpha=0.5)
     ax.legend(loc='best')
     
-    # Adjust layout
+    # Adjust layout (same as OG_convergence.py)
     fig.tight_layout(pad=2.0)
     
-    # Save or display
-    if save_path:
-        fig.savefig(save_path, format='png', dpi=300, bbox_inches='tight', pad_inches=0.5)
-        print(f"Comparison plot saved to {save_path}")
-    else:
-        plt.show()
-    
+    # Save plot (same parameters as OG_convergence.py)
+    fig.savefig(save_path, format='png', dpi=300, bbox_inches='tight', pad_inches=0.5)
     plt.close(fig)
     
-    # Print summary statistics for both algorithms
-    vanilla_final_values = [data['best_so_far'][-1] for data in vanilla_data]
-    tabpfn_final_values = [data['best_so_far'][-1] for data in tabpfn_data]
+    # Print summary statistics for all algorithms (same as OG_convergence.py)
+    print("\nComparison of final values across algorithms:")
+    for algorithm_name, convergence_data in algorithm_data.items():
+        final_values = [data['best_so_far'][-1] for data in convergence_data]
+        print(f"{algorithm_name:20}: {np.mean(final_values):.6e} ± {np.std(final_values):.6e}")
     
-    print("\nComparison of final values:")
-    print(f"Vanilla BO mean: {np.mean(vanilla_final_values):.6e} ± {np.std(vanilla_final_values):.6e}")
-    print(f"TabPFN BO mean: {np.mean(tabpfn_final_values):.6e} ± {np.std(tabpfn_final_values):.6e}")
+    print(f"    📈 Multi-algorithm comparison plot saved: {save_path.name}")
     
     return fig
 
+def plot_runtime_comparison(benchmark_manager, save_dir):
+    """Create runtime comparison plots"""
+    runtime_data = benchmark_manager.runtime_data
+    runtime_summary = benchmark_manager.runtime_summary
+    
+    if not runtime_data or len(runtime_data) < 2:
+        print("Insufficient data for runtime comparison plots")
+        return
+    
+    # Create runtime plots directory
+    runtime_plots_dir = save_dir / "runtime_analysis"
+    runtime_plots_dir.mkdir(exist_ok=True)
+    
+    # Cumulative runtime over experiments
+    plt.figure(figsize=(12, 6), dpi=100)
+    
+    algorithms = list(runtime_data.keys())
+    for algo in algorithms:
+        runtimes = [d['runtime'] for d in runtime_data[algo]]
+        cumulative_runtime = np.cumsum(runtimes)
+        experiments = range(1, len(runtimes) + 1)
+        
+        plt.plot(experiments, cumulative_runtime, 
+                label=f'{algo.title()} BO (Total: {cumulative_runtime[-1]:.1f}s)', 
+                linewidth=2)
+    
+    plt.title('Cumulative Runtime Over Experiments', fontsize=14, fontweight='bold')
+    plt.xlabel('Experiment Number', fontsize=12)
+    plt.ylabel('Cumulative Runtime (seconds)', fontsize=12)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(runtime_plots_dir / "cumulative_runtime.png", dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print(f"📊 Runtime analysis plots saved to: {runtime_plots_dir}")
+    
+    return runtime_plots_dir
+
+def save_runtime_report(benchmark_manager, save_path):
+    """Save detailed runtime analysis report"""
+    
+    report = []
+    report.append("="*80)
+    report.append("TABPFN vs VANILLA GP - RUNTIME ANALYSIS REPORT")
+    report.append("="*80)
+    report.append(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report.append("")
+    
+    if not benchmark_manager.runtime_summary:
+        report.append("No runtime data available.")
+        with open(save_path, 'w') as f:
+            f.write('\n'.join(report))
+        return
+    
+    # Summary table
+    report.append("SUMMARY")
+    report.append("-" * 40)
+    for algorithm, stats in benchmark_manager.runtime_summary.items():
+        report.append(f"{algorithm.title()} BO:")
+        report.append(f"  Total Runtime:    {stats['total_runtime']:.1f} seconds")
+        report.append(f"  Experiments:      {stats['n_runs']}")
+        report.append(f"  Mean per run:     {stats['mean_runtime']:.3f} ± {stats['std_runtime']:.3f} seconds")
+        
+        if 'speedup_vs_vanilla' in stats:
+            speedup = stats['speedup_vs_vanilla']
+            if speedup != 1.0:
+                report.append(f"  Speedup:          {speedup:.2f}x vs Vanilla")
+        report.append("")
+    
+    # Performance analysis by dimension
+    report.append("PERFORMANCE BY DIMENSION")
+    report.append("-" * 40)
+    
+    for algo in benchmark_manager.runtime_data:
+        report.append(f"{algo.title()} BO:")
+        
+        # Group by dimension
+        dim_stats = {}
+        for d in benchmark_manager.runtime_data[algo]:
+            dim = d['dimension']
+            if dim not in dim_stats:
+                dim_stats[dim] = []
+            dim_stats[dim].append(d['runtime'])
+        
+        for dim in sorted(dim_stats.keys()):
+            runtimes = dim_stats[dim]
+            report.append(f"  Dimension {dim}D: {np.mean(runtimes):.3f} ± {np.std(runtimes):.3f} seconds (n={len(runtimes)})")
+        report.append("")
+    
+    with open(save_path, 'w') as f:
+        f.write('\n'.join(report))
+    
+    print(f"📄 Runtime report saved: {save_path}")
+
+def run_benchmark():
+    """Run the complete benchmark experiment"""
+    
+    benchmark_manager = BenchmarkManager()
+    
+    print(f"\n🚀 Starting BBOB Benchmark")
+    print(f"Functions: {len(BBOB_FUNCTIONS)} | Dimensions: {DIMENSIONS}")
+    print(f"Instances: {INSTANCES} | Repetitions: {N_REPETITIONS}")
+    print(f"Algorithms: {ALGORITHMS}")
+    print("=" * 80)
+    
+    total_experiments = len(BBOB_FUNCTIONS) * len(DIMENSIONS) * len(INSTANCES) * N_REPETITIONS * len(ALGORITHMS)
+    completed_experiments = 0
+    
+    # Track start time for total benchmark
+    total_start_time = time.time()
+    
+    # Run experiments for each dimension
+    for dimension in DIMENSIONS:
+        print(f"\n📊 Processing Dimension {dimension}D")
+        print("-" * 40)
+        
+        dim_dir = benchmark_manager.base_output_dir / f"dim_{dimension}"
+        
+        # For each function
+        for problem_id in BBOB_FUNCTIONS:
+            print(f"\nFunction {problem_id:2d}/24 (Dim {dimension}D):")
+            
+            # For each instance
+            for instance in INSTANCES:
+                # For each repetition
+                for repetition in range(1, N_REPETITIONS + 1):
+                    # For each algorithm
+                    for algorithm in ALGORITHMS:
+                        try:
+                            result = run_single_optimization(
+                                algorithm=algorithm,
+                                problem_id=problem_id,
+                                dimension=dimension,
+                                instance=instance,
+                                repetition=repetition,
+                                output_dir=dim_dir / algorithm
+                            )
+                            
+                            completed_experiments += 1
+                            
+                            # Track runtime data
+                            benchmark_manager.add_runtime_result(result)
+                            
+                        except Exception as e:
+                            print(f"    ✗ Error in {algorithm}: {e}")
+                            completed_experiments += 1
+                    continue
+            
+            # Create comparison plot for this function and dimension using .dat files
+            if True:  # Always try to create plots from .dat files
+                # Process .dat files from both algorithms (same as OG_convergence.py)
+                vanilla_data = []
+                tabpfn_data = []
+                
+                # Read Vanilla BO .dat files
+                vanilla_dir = dim_dir / "vanilla"
+                if vanilla_dir.exists():
+                    dat_files = list(vanilla_dir.rglob("*.dat"))
+                    for dat_file in dat_files:
+                        try:
+                            if f"_f{problem_id}_" in dat_file.name:
+                                run_data = process_dat_file(dat_file)
+                                vanilla_data.append(run_data)
+                        except Exception as e:
+                            print(f"Error processing vanilla .dat file {dat_file}: {e}")
+                
+                # Read TabPFN BO .dat files  
+                tabpfn_dir = dim_dir / "tabpfn"
+                if tabpfn_dir.exists():
+                    dat_files = list(tabpfn_dir.rglob("*.dat"))
+                    for dat_file in dat_files:
+                        try:
+                            if f"_f{problem_id}_" in dat_file.name:
+                                run_data = process_dat_file(dat_file)
+                                tabpfn_data.append(run_data)
+                        except Exception as e:
+                            print(f"Error processing tabpfn .dat file {dat_file}: {e}")
+                
+                if vanilla_data or tabpfn_data:
+                    plot_path = dim_dir / f"function_{problem_id:02d}_comparison.png"
+                    plot_function_comparison(
+                        vanilla_data=vanilla_data,
+                        tabpfn_data=tabpfn_data,
+                        problem_id=problem_id,
+                        dimension=dimension,
+                        save_path=plot_path
+                    )
+            
+            # Progress update
+            progress = (completed_experiments / total_experiments) * 100
+            print(f"    Progress: {completed_experiments}/{total_experiments} ({progress:.1f}%)")
+    
+    # Calculate total benchmark time
+    total_end_time = time.time()
+    total_benchmark_time = total_end_time - total_start_time
+    
+    # Calculate runtime summary
+    benchmark_manager.calculate_runtime_summary()
+    benchmark_manager.print_runtime_summary()
+    
+    # Create runtime comparison plots
+    plot_runtime_comparison(benchmark_manager, benchmark_manager.base_output_dir)
+    
+    # Save runtime report
+    runtime_dir = benchmark_manager.base_output_dir / "runtime_analysis"
+    runtime_dir.mkdir(exist_ok=True)
+    save_runtime_report(benchmark_manager, runtime_dir / "runtime_report.txt")
+    
+    # Save experiment summary
+    benchmark_manager.experiment_log["end_time"] = datetime.now().isoformat()
+    benchmark_manager.experiment_log["total_experiments"] = total_experiments
+    benchmark_manager.experiment_log["completed_experiments"] = completed_experiments
+    benchmark_manager.experiment_log["total_benchmark_time_seconds"] = total_benchmark_time
+    benchmark_manager.experiment_log["runtime_summary"] = benchmark_manager.runtime_summary
+    
+    log_file = benchmark_manager.base_output_dir / "experiment_log.json"
+    with open(log_file, 'w') as f:
+        json.dump(benchmark_manager.experiment_log, f, indent=2)
+    
+    print(f"\n🎉 Benchmark Complete!")
+    print(f"Total benchmark time: {total_benchmark_time:.1f} seconds")
+    print(f"Results saved to: {benchmark_manager.base_output_dir}")
+    print(f"Experiment log: {log_file}")
+
 if __name__ == "__main__":
     try:
-        # Parameters
-        problem_id = 17
-        dimension = 40
-        n_runs = 5
-        budget = 150  # Increased from 100 to allow for optimization iterations after DoE
-        instance = 1
-        fit_mode = "fit_with_cache"
+        # Start the benchmark
+        run_benchmark()
         
-        # To compare Vanilla BO vs TabPFN BO:
-        # 1. Run with ALGORITHM = "vanilla" first
-        # 2. Then change to ALGORITHM = "tabpfn" and run again
-        # 3. To test different acquisition behaviors, change ACQUISITION_FUNCTION to one of:
-        #    - "expected_improvement" (default)
-        #    - "probability_of_improvement" 
-        #    - "upper_confidence_bound"
-        #    - "log_expected_improvement"
-        
-        print(f"Parameters set: problem_id={problem_id}, dimension={dimension}, n_runs={n_runs}")
-        print(f"Using algorithm: {ALGORITHM} on device: {device}")
-        print(f"Using acquisition function: {ACQUISITION_FUNCTION}")
-        print(f"TabPFN fit mode: {fit_mode}")
-        
-        # Create plots directory if it doesn't exist
-        plots_dir = Path("convergence_plots")
-        plots_dir.mkdir(exist_ok=True)
-        
-        # Run the optimization to generate data files
-        print("\nRunning optimization...")
-        run_optimization(
-            problem_id=problem_id,
-            dimension=dimension,
-            n_runs=n_runs,
-            budget=budget,
-            instance=instance,
-            device=device,  # Pass the detected device
-            fit_mode=fit_mode  # Pass the fit mode
-        )
-        print("Optimization completed.")
-        
-        # Read the generated data files and create plots
-        print("\nReading data files and creating plots...")
-        base_dir = Path(experiment_folder)
-        
-        # Process data from all run directories
-        plot_data = []
-        for run in range(1, n_runs + 1):
-            run_dir = base_dir / f"run_{run}"
-            if not run_dir.exists():
-                continue
-                
-            # Find data directories
-            data_dirs = [item for item in run_dir.iterdir() 
-                        if item.is_dir() and f"data_f{problem_id}" in item.name]
-            
-            if not data_dirs:
-                continue
-            
-            # Find .dat files
-            dat_files = []
-            for data_dir in data_dirs:
-                dat_files.extend(list(data_dir.glob(f"*_f{problem_id}_*DIM{dimension}*.dat")))
-            
-            if not dat_files:
-                continue
-            
-            try:
-                # Process the first .dat file found
-                run_data = process_dat_file(dat_files[0])
-                plot_data.append(run_data)
-            except Exception as e:
-                print(f"Error processing run {run}: {e}")
-        
-        if not plot_data:
-            raise FileNotFoundError(f"No valid data files found for problem {problem_id}, dimension {dimension}")
-        
-        # Create and save standard convergence plots
-        print("Creating standard convergence plot...")
-        plot_convergence(
-            plot_data,
-            problem_id,
-            dimension,
-            save_path=plots_dir / f"{ALGORITHM}_problem_{problem_id}_dim_{dimension}.png",
-            algorithm_name=algorithm_name
-        )
-        
-        # Create and save error band plots
-        print("Creating error band convergence plot...")
-        plot_convergence_with_error_bands(
-            plot_data,
-            problem_id,
-            dimension,
-            save_path=plots_dir / f"{ALGORITHM}_problem_{problem_id}_dim_{dimension}.png",
-            algorithm_name=algorithm_name
-        )
-        
-        # If both algorithm data exists, create comparison plot
-        vanilla_folder = "bo-experiment-vanilla"
-        tabpfn_folder = "bo-experiment-tabpfn"
-        
-        # Check if data exists for both algorithms
-        if Path(vanilla_folder).exists() and Path(tabpfn_folder).exists():
-            print("\nCreating algorithm comparison plot...")
-            
-            # Process vanilla BO data
-            vanilla_data = []
-            for run in range(1, n_runs + 1):
-                run_dir = Path(vanilla_folder) / f"run_{run}"
-                if not run_dir.exists():
-                    continue
-                    
-                data_dirs = [item for item in run_dir.iterdir() 
-                            if item.is_dir() and f"data_f{problem_id}" in item.name]
-                
-                dat_files = []
-                for data_dir in data_dirs:
-                    dat_files.extend(list(data_dir.glob(f"*_f{problem_id}_*DIM{dimension}*.dat")))
-                
-                if dat_files:
-                    try:
-                        run_data = process_dat_file(dat_files[0])
-                        vanilla_data.append(run_data)
-                    except Exception as e:
-                        print(f"Error processing Vanilla BO run {run}: {e}")
-            
-            # Process TabPFN BO data
-            tabpfn_data = []
-            for run in range(1, n_runs + 1):
-                run_dir = Path(tabpfn_folder) / f"run_{run}"
-                if not run_dir.exists():
-                    continue
-                    
-                data_dirs = [item for item in run_dir.iterdir() 
-                            if item.is_dir() and f"data_f{problem_id}" in item.name]
-                
-                dat_files = []
-                for data_dir in data_dirs:
-                    dat_files.extend(list(data_dir.glob(f"*_f{problem_id}_*DIM{dimension}*.dat")))
-                
-                if dat_files:
-                    try:
-                        run_data = process_dat_file(dat_files[0])
-                        tabpfn_data.append(run_data)
-                    except Exception as e:
-                        print(f"Error processing TabPFN BO run {run}: {e}")
-            
-            # Create comparison plot if we have data from both algorithms
-            if vanilla_data and tabpfn_data:
-                plot_comparison(
-                    vanilla_data,
-                    tabpfn_data,
-                    problem_id,
-                    dimension,
-                    save_path=plots_dir / f"comparison_problem_{problem_id}_dim_{dimension}.png"
-                )
-            else:
-                print("Not enough data available for comparison plot.")
-        
-        print("\nOptimization and plotting complete!")
-        
+    except KeyboardInterrupt:
+        print("\n⚠️  Benchmark interrupted by user")
     except Exception as e:
-        print(f"An error occurred: {str(e)}")
+        print(f"\n❌ Benchmark failed with error: {str(e)}")
         traceback.print_exc()

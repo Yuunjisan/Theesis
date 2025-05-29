@@ -9,10 +9,8 @@ from botorch.models.model import Model
 from botorch.acquisition.analytic import ExpectedImprovement, ProbabilityOfImprovement, UpperConfidenceBound, AnalyticAcquisitionFunction, LogExpectedImprovement
 from botorch.optim import optimize_acqf
 from botorch.posteriors import Posterior
-from botorch.utils.transforms import normalize, unnormalize
 from torch.distributions import MultivariateNormal
 from tabpfn import TabPFNRegressor
-from scipy import stats
 
 
 ALLOWED_ACQUISITION_FUNCTION_STRINGS:tuple = ("expected_improvement",
@@ -33,9 +31,9 @@ class TabPFNSurrogateModel(Model):
         self,
         train_X: np.ndarray,
         train_Y: np.ndarray,
-        n_estimators: int = 16,
+        n_estimators: int = 8,
         fit_mode: str = "fit_with_cache",
-        device: str = "auto"
+        device: str = "cpu"  # Force CPU
     ):
         super().__init__()
         
@@ -44,14 +42,14 @@ class TabPFNSurrogateModel(Model):
         self.train_Y = torch.tensor(train_Y, dtype=torch.float64).view(-1, 1)
         self.n_estimators = n_estimators
         self.fit_mode = fit_mode
-        self.device = device
+        self.device = "cpu"  # Force CPU
         
         # Initialize and fit TabPFN - let it handle normalization internally
         self.model = TabPFNRegressor(
             n_estimators=n_estimators, 
-            softmax_temperature=1, 
+            softmax_temperature=0.9, 
             fit_mode=fit_mode,
-            device=device
+            device="cpu"  # Force CPU
         )
         self.model.fit(train_X, train_Y.ravel())
     
@@ -71,7 +69,7 @@ class TabPFNSurrogateModel(Model):
         **kwargs
     ) -> Posterior:
         """
-        Returns the posterior at X, following TabPFN_BOTORCH's approach which works with BoTorch.
+        Returns the posterior at X using TabPFN's native BarDistribution mean and variance.
         X shape: [batch_shape, q, d] where q is typically 1 for acquisition functions
         """
         # Extract original batch shape and q value for proper reshaping
@@ -88,37 +86,31 @@ class TabPFNSurrogateModel(Model):
             # For non-batched case
             X_reshaped = X.view(q, d).detach().cpu().numpy()
         
-        # Get predictions from TabPFN
+        # Get predictions from TabPFN using full output to access BarDistribution
         try:
-            predictions = self.model.predict(X_reshaped, output_type="main")
-            mean = predictions["mean"]
-            quantiles = predictions["quantiles"]
+            # Use output_type="full" to get logits and criterion (BarDistribution)
+            output = self.model.predict(X_reshaped, output_type="full")
+            logits = output["logits"]
+            criterion = output["criterion"]  # This is the BarDistribution
+            
+            # Extract mean and variance directly from BarDistribution
+            mean = criterion.mean(logits).detach().cpu().numpy()  # Shape: [n_points]
+            variance = criterion.variance(logits).detach().cpu().numpy()  # Shape: [n_points]
+            
+            # Ensure positive variance
+            variance = np.maximum(variance, 1e-8)
+            std = np.sqrt(variance)
+            
         except Exception as e:
-            print(f"Error in TabPFN prediction: {e}")
-            # Fallback to simple predictions
+            print(f"Error in TabPFN BarDistribution prediction: {e}")
+            # Fallback to zeros
             sample_size = X_reshaped.shape[0]
             mean = np.zeros(sample_size)
-            quantiles = [np.zeros(sample_size) for _ in range(9)]
-        
-        # Calculate std from quantiles
-        std_estimates = []
-        quantile_pairs = [(0, 8), (1, 7), (2, 6), (3, 5)]
-        alphas = [0.1, 0.2, 0.3, 0.4]
-        
-        for (lower_idx, upper_idx), alpha in zip(quantile_pairs, alphas):
-            q_low = quantiles[lower_idx]
-            q_high = quantiles[upper_idx]
-            z_score = 2 * np.abs(stats.norm.ppf(alpha))
-            std = (q_high - q_low) / z_score
-            std_estimates.append(std)
-        
-        # Average the std estimates with a minimum value
-        std = np.mean(std_estimates, axis=0)
-        std = np.maximum(std, 1e-6)  # Ensure positive std
+            std = np.ones(sample_size) * 1e-3  # Small positive std
         
         # Convert to tensors with correct shape matching X's dtype and device
-        mean_tensor = torch.tensor(mean, dtype=X.dtype, device=X.device)
-        std_tensor = torch.tensor(std, dtype=X.dtype, device=X.device)
+        mean_tensor = torch.tensor(mean, dtype=X.dtype, device=torch.device('cpu'))  # Force CPU
+        std_tensor = torch.tensor(std, dtype=X.dtype, device=torch.device('cpu'))  # Force CPU
         
         # Reshape output for BoTorch
         # For batched case, we need to ensure the output has shape [batch_shape, q, 1]
@@ -190,7 +182,7 @@ class TabPFNSurrogateModel(Model):
             # Re-fit the TabPFN model
             self.model.fit(new_train_X, new_train_Y)
             return self
-        else:
+        else: #REMOVETHISSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
             # Create a new model with updated data (original behavior - less efficient)
             if verbose:
                 print(f"Creating new TabPFN model: {len(self.train_X)} -> {len(new_train_X)} points")
@@ -206,8 +198,8 @@ class TabPFNSurrogateModel(Model):
 
 class TabPFN_BO(AbstractBayesianOptimizer):
     def __init__(self, budget, n_DoE=0, acquisition_function:str="expected_improvement",
-                 random_seed:int=43, n_estimators:int=16, fit_mode:str="fit_with_cache", 
-                 device:str="auto", **kwargs):
+                 random_seed:int=43, n_estimators:int=8, fit_mode:str="fit_with_cache", 
+                 device:str="cpu", **kwargs):  # Force CPU
         """
         Bayesian Optimization using TabPFN as a surrogate model.
         
@@ -218,16 +210,16 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             random_seed: Random seed for reproducibility
             n_estimators: Number of TabPFN estimators in the ensemble
             fit_mode: Mode for TabPFN fitting, one of "low_memory", "fit_preprocessors", or "fit_with_cache"
-            device: Device to use for TabPFN, "auto", "cpu", or "cuda"
+            device: Device to use for TabPFN, forced to "cpu"
             **kwargs: Additional parameters
         """
         # Call the superclass
         super().__init__(budget, n_DoE, random_seed, **kwargs)
         
-        # TabPFN specific parameters
+        # TabPFN specific parameters - force CPU
         self.n_estimators = n_estimators
         self.fit_mode = fit_mode
-        self.device = device
+        self.device = "cpu"  # Force CPU
         
         # Set up the acquisition function
         self.__acq_func = None
@@ -341,12 +333,12 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             train_Y=train_obj,
             n_estimators=self.n_estimators,
             fit_mode=self.fit_mode,
-            device=self.device
+            device="cpu"  # Force CPU
         )
     
     def optimize_acqf_and_get_observation(self):
         """Optimizes the acquisition function and returns a new candidate."""
-        bounds_tensor = torch.tensor(self.bounds.transpose(), dtype=torch.float64)
+        bounds_tensor = torch.tensor(self.bounds.transpose(), dtype=torch.float64).cpu()  # Force CPU
         
         try:
             # Print diagnostic info
@@ -357,12 +349,14 @@ class TabPFN_BO(AbstractBayesianOptimizer):
                 bounds=bounds_tensor,
                 q=1,
                 num_restarts=10,
-                raw_samples=100,
+                raw_samples=100, #512 the standard?
             )
             
-            # Ensure shape is correct (n x d tensor where n=1)
+            # Ensure shape is correct (n x d tensor where n=1) and on CPU
             if candidates.dim() == 3:
                 candidates = candidates.squeeze(1)
+            
+            candidates = candidates.cpu()  # Ensure on CPU
             
             print(f"Acquisition function optimization SUCCEEDED with value: {acq_value.item():.6f}")
             return candidates
@@ -371,11 +365,11 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             print(f"ERROR: Acquisition function optimization FAILED: {e}")
             print("Falling back to random sampling!")
             
-            # Fallback to random sampling - ensure correct shape with proper dimensionality
+            # Fallback to random sampling - ensure correct shape with proper dimensionality and on CPU
             lb = self.bounds[:, 0]
             ub = self.bounds[:, 1]
             random_point = lb + np.random.rand(self.dimension) * (ub - lb)
-            return torch.tensor(random_point.reshape(1, self.dimension), dtype=torch.float64)
+            return torch.tensor(random_point.reshape(1, self.dimension), dtype=torch.float64).cpu()  # Force CPU
     
     def set_acquisition_function_subclass(self) -> None:
         """Set the acquisition function class based on the name"""

@@ -37,14 +37,8 @@ class Vanilla_BO(AbstractBayesianOptimizer):
         # Call the superclass
         super().__init__(budget, n_DoE, random_seed, **kwargs)
 
-        # Get device from kwargs or use default
-        device_str = kwargs.get("device", "cuda" if torch.cuda.is_available() else "cpu")
-        
-        # Parse device string to torch.device
-        if device_str == "auto":
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            device = torch.device(device_str)
+        # Force CPU usage regardless of what's passed in kwargs
+        device = torch.device("cpu")  # Force CPU
             
         dtype = torch.double
         smoke_test = os.environ.get("SMOKE_TEST")
@@ -146,15 +140,15 @@ class Vanilla_BO(AbstractBayesianOptimizer):
         - **kwargs: Left these keyword arguments for upcoming developments
         """
 
-        # Convert bounds array to Torch
-        bounds_torch:Tensor = torch.from_numpy(self.bounds.transpose()).detach()
+        # Convert bounds array to Torch - force CPU
+        bounds_torch:Tensor = torch.from_numpy(self.bounds.transpose()).detach().cpu()
 
-        # Convert the initial values to Torch Tensors
+        # Convert the initial values to Torch Tensors - force CPU
         train_x:np.ndarray = np.array(self.x_evals).reshape((-1,self.dimension)) 
-        train_x:Tensor = torch.from_numpy(train_x).detach()
+        train_x:Tensor = torch.from_numpy(train_x).detach().cpu()
 
         train_obj:np.ndarray = np.array(self.f_evals).reshape((-1,1))
-        train_obj:Tensor = torch.from_numpy(train_obj).detach()
+        train_obj:Tensor = torch.from_numpy(train_obj).detach().cpu()
 
         #Likelihood almost none as known function
         noise_constraint = GreaterThan(1e-8)  # Using the smallest possible value that's numerically stable
@@ -178,7 +172,7 @@ class Vanilla_BO(AbstractBayesianOptimizer):
         # optimize
         candidates, _ = optimize_acqf(
             acq_function=self.acquisition_function,
-            bounds=torch.from_numpy(self.bounds.transpose()).detach(),
+            bounds=torch.from_numpy(self.bounds.transpose()).detach().cpu(),  # Force CPU
             q=1,#self.__torch_config['BATCH_SIZE'],
             num_restarts=self.__torch_config['NUM_RESTARTS'],
             raw_samples=self.__torch_config['RAW_SAMPLES'],  # used for intialization heuristic
@@ -186,11 +180,9 @@ class Vanilla_BO(AbstractBayesianOptimizer):
         )
 
         # observe new values
-        new_x = candidates.detach()
+        new_x = candidates.detach().cpu()  # Force CPU
 
-        new_x = new_x.reshape(shape=((1,-1))).detach()
-
- 
+        new_x = new_x.reshape(shape=((1,-1))).detach().cpu()  # Force CPU
 
         return new_x
 
