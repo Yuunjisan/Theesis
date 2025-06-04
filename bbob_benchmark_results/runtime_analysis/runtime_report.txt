@@ -1,0 +1,25 @@
+================================================================================
+TABPFN vs VANILLA GP - RUNTIME ANALYSIS REPORT
+================================================================================
+Generated: 2025-06-01 14:31:13
+
+SUMMARY
+----------------------------------------
+Vanilla BO:
+  Total Runtime:    649.9 seconds
+  Experiments:      15
+  Mean per run:     43.328 ± 6.683 seconds
+
+Tabpfn BO:
+  Total Runtime:    3906.4 seconds
+  Experiments:      15
+  Mean per run:     260.427 ± 47.897 seconds
+  Speedup:          0.17x vs Vanilla
+
+PERFORMANCE BY DIMENSION
+----------------------------------------
+Vanilla BO:
+  Dimension 20D: 43.328 ± 6.683 seconds (n=15)
+
+Tabpfn BO:
+  Dimension 20D: 260.427 ± 47.897 seconds (n=15)

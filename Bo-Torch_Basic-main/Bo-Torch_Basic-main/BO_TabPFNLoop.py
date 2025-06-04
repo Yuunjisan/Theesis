@@ -26,16 +26,16 @@ def f(x):
     if isinstance(x, np.ndarray):
         if x.ndim > 1:
             x = x.ravel()
-    return x**2 * np.cos(x) + 5
+    return x**2 * np.sin(x) + 5
 
 class TabPFNVisualizationBO(TabPFN_BO):
     """
     Extension of TabPFN_BO that adds visualization capabilities for the surrogate model
     and acquisition function during optimization.
     """
-    def __init__(self, budget, n_DoE=0, acquisition_function="expected_improvement", 
+    def __init__(self, budget, n_DoE=4, acquisition_function="expected_improvement", 
                  random_seed=42, save_plots=True, plots_dir="tabpfn_bo_visualizations",
-                 n_estimators=16, fit_mode="fit_with_cache", device="cpu", **kwargs):
+                 n_estimators=8, fit_mode="fit_with_cache", device="cpu", **kwargs):
         super().__init__(budget, n_DoE, acquisition_function, random_seed, 
                          n_estimators=n_estimators, fit_mode=fit_mode, device="cpu", **kwargs)
         
@@ -524,5 +524,5 @@ if __name__ == "__main__":
             acquisition_function=acq_func,
             budget=25,
             n_DoE=4,
-            n_estimators=16
+            n_estimators=8
         )

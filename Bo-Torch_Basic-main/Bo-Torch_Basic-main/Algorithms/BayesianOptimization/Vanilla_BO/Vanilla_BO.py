@@ -32,19 +32,35 @@ ALLOWED_SHORTHAND_ACQUISITION_FUNCTION_STRINGS:dict = {"EI":"expected_improvemen
 
 class Vanilla_BO(AbstractBayesianOptimizer):
     def __init__(self, budget, n_DoE=0, acquisition_function:str="expected_improvement",
-                 random_seed:int=43, **kwargs):
+                 random_seed:int=43, device:str="auto", **kwargs):
+        """
+        Vanilla Bayesian Optimization using Gaussian Process surrogate model.
+        
+        Args:
+            budget: Total number of function evaluations allowed
+            n_DoE: Number of initial design points
+            acquisition_function: Acquisition function to use
+            random_seed: Random seed for reproducibility
+            device: Device to use ("cpu", "cuda", or "auto" for automatic detection)
+            **kwargs: Additional parameters
+        """
 
         # Call the superclass
         super().__init__(budget, n_DoE, random_seed, **kwargs)
 
-        # Force CPU usage regardless of what's passed in kwargs
-        device = torch.device("cpu")  # Force CPU
+        # Determine device
+        if device == "auto":
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = device
+        
+        device_obj = torch.device(self.device)
             
         dtype = torch.double
         smoke_test = os.environ.get("SMOKE_TEST")
 
         # Set up the main configuration
-        self.__torch_config:dict = {"device":device,
+        self.__torch_config:dict = {"device":device_obj,
                                     "dtype":dtype,
                                     "SMOKE_TEST":smoke_test,
                                     "BATCH_SIZE":3 if not smoke_test else 2,
@@ -96,7 +112,7 @@ class Vanilla_BO(AbstractBayesianOptimizer):
 
             # Append the new values
             for _, new_x_arr in enumerate(new_x):
-                new_x_arr_numpy:np.ndarray = new_x_arr.detach().numpy().ravel()
+                new_x_arr_numpy:np.ndarray = new_x_arr.detach().cpu().numpy().ravel()
 
                 # Append the new value
                 self.x_evals.append(new_x_arr_numpy)
@@ -140,15 +156,18 @@ class Vanilla_BO(AbstractBayesianOptimizer):
         - **kwargs: Left these keyword arguments for upcoming developments
         """
 
-        # Convert bounds array to Torch - force CPU
-        bounds_torch:Tensor = torch.from_numpy(self.bounds.transpose()).detach().cpu()
+        # Get device from config
+        device = self.__torch_config["device"]
 
-        # Convert the initial values to Torch Tensors - force CPU
+        # Convert bounds array to Torch - use configured device
+        bounds_torch:Tensor = torch.from_numpy(self.bounds.transpose()).to(device)
+
+        # Convert the initial values to Torch Tensors - use configured device
         train_x:np.ndarray = np.array(self.x_evals).reshape((-1,self.dimension)) 
-        train_x:Tensor = torch.from_numpy(train_x).detach().cpu()
+        train_x:Tensor = torch.from_numpy(train_x).to(device)
 
         train_obj:np.ndarray = np.array(self.f_evals).reshape((-1,1))
-        train_obj:Tensor = torch.from_numpy(train_obj).detach().cpu()
+        train_obj:Tensor = torch.from_numpy(train_obj).to(device)
 
         #Likelihood almost none as known function
         noise_constraint = GreaterThan(1e-8)  # Using the smallest possible value that's numerically stable
@@ -165,14 +184,18 @@ class Vanilla_BO(AbstractBayesianOptimizer):
                                                                                 transform_on_train=False,
                                                                                 transform_on_fantasize=False,
                                                                                 bounds=bounds_torch)
-        )
+        ).to(device)
     
     def optimize_acqf_and_get_observation(self)->Tensor:
         """Optimizes the acquisition function, and returns a new candidate."""
+        
+        # Get device from config
+        device = self.__torch_config["device"]
+        
         # optimize
         candidates, _ = optimize_acqf(
             acq_function=self.acquisition_function,
-            bounds=torch.from_numpy(self.bounds.transpose()).detach().cpu(),  # Force CPU
+            bounds=torch.from_numpy(self.bounds.transpose()).to(device),
             q=1,#self.__torch_config['BATCH_SIZE'],
             num_restarts=self.__torch_config['NUM_RESTARTS'],
             raw_samples=self.__torch_config['RAW_SAMPLES'],  # used for intialization heuristic
@@ -180,9 +203,9 @@ class Vanilla_BO(AbstractBayesianOptimizer):
         )
 
         # observe new values
-        new_x = candidates.detach().cpu()  # Force CPU
+        new_x = candidates
 
-        new_x = new_x.reshape(shape=((1,-1))).detach().cpu()  # Force CPU
+        new_x = new_x.reshape(shape=((1,-1)))
 
         return new_x
 

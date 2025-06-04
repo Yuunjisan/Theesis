@@ -16,7 +16,7 @@ class LHS_sampler(object):
                           "corr":"correlation"}
     
     def __init__(self,
-                 criterion:str="correlation",
+                 criterion:str="maximin",
                  iterations:int = 1000,
                  sample_zero:bool = False):
         
@@ -232,7 +232,7 @@ class AbstractBayesianOptimizer(AbstractAlgorithm):
                             iterations=self.iterations
         """
 
-        complete_params_dict:dict = {"criterion":"center",
+        complete_params_dict:dict = {"criterion":"maximin",
                                      "iterations":1000,
                                      "sample_zero":False}
         

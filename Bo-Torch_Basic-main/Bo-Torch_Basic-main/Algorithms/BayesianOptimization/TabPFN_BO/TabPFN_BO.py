@@ -32,24 +32,29 @@ class TabPFNSurrogateModel(Model):
         train_X: np.ndarray,
         train_Y: np.ndarray,
         n_estimators: int = 8,
+        temperature: float = 0.9,
         fit_mode: str = "fit_with_cache",
-        device: str = "cpu"  # Force CPU
+        device: str = "auto"
     ):
         super().__init__()
         
-        # Convert numpy arrays to tensors
-        self.train_X = torch.tensor(train_X, dtype=torch.float64)
-        self.train_Y = torch.tensor(train_Y, dtype=torch.float64).view(-1, 1)
-        self.n_estimators = n_estimators
-        self.fit_mode = fit_mode
-        self.device = "cpu"  # Force CPU
+        # Determine device
+        self.device = device if device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu")
+        device_obj = torch.device(self.device)
         
-        # Initialize and fit TabPFN - let it handle normalization internally
+        # Convert numpy arrays to tensors on the correct device
+        self.train_X = torch.tensor(train_X, dtype=torch.float64, device=device_obj)
+        self.train_Y = torch.tensor(train_Y, dtype=torch.float64, device=device_obj).view(-1, 1)
+        self.n_estimators = n_estimators
+        self.temperature = temperature
+        self.fit_mode = fit_mode
+        
+        # Initialize and fit TabPFN
         self.model = TabPFNRegressor(
             n_estimators=n_estimators, 
-            softmax_temperature=0.9, 
+            softmax_temperature=temperature,
             fit_mode=fit_mode,
-            device="cpu"  # Force CPU
+            device=self.device
         )
         self.model.fit(train_X, train_Y.ravel())
     
@@ -109,8 +114,9 @@ class TabPFNSurrogateModel(Model):
             std = np.ones(sample_size) * 1e-3  # Small positive std
         
         # Convert to tensors with correct shape matching X's dtype and device
-        mean_tensor = torch.tensor(mean, dtype=X.dtype, device=torch.device('cpu'))  # Force CPU
-        std_tensor = torch.tensor(std, dtype=X.dtype, device=torch.device('cpu'))  # Force CPU
+        target_device = torch.device(self.device)
+        mean_tensor = torch.tensor(mean, dtype=X.dtype, device=target_device)
+        std_tensor = torch.tensor(std, dtype=X.dtype, device=target_device)
         
         # Reshape output for BoTorch
         # For batched case, we need to ensure the output has shape [batch_shape, q, 1]
@@ -137,19 +143,21 @@ class TabPFNSurrogateModel(Model):
             scale_tril=std_out.unsqueeze(-1)  # Make scale_tril have shape [..., q, 1, 1]
         )
     
-    def condition_on_observations(self, X: Tensor, Y: Tensor, update_in_place: bool = False, verbose: bool = False, **kwargs) -> Model:
+    def condition_on_observations(self, X: Tensor, Y: Tensor, verbose: bool = False, **kwargs) -> Model:
         """Update the model with new observations.
         
         Args:
             X: New input points
             Y: New observations
-            update_in_place: If True, update this model in-place instead of creating a new one (recommended for performance)
             verbose: If True, print update information
             **kwargs: Additional parameters
             
         Returns:
-            Updated model (self if update_in_place=True, otherwise a new model)
+            Updated model (self)
         """
+        # Get the target device
+        target_device = torch.device(self.device)
+        
         # Handle various possible tensor shapes for X and Y
         if X.dim() > 2:
             # Handle batched inputs: squeeze out the q dimension
@@ -163,43 +171,34 @@ class TabPFNSurrogateModel(Model):
         else:
             Y_to_add = Y
 
-        # Create a flat view of the tensors
-        X_flat = X_to_add.reshape(-1, X_to_add.shape[-1])
-        Y_flat = Y_to_add.reshape(-1)
+        # Create a flat view of the tensors and move to target device
+        X_flat = X_to_add.reshape(-1, X_to_add.shape[-1]).to(target_device)
+        Y_flat = Y_to_add.reshape(-1).to(target_device)
+        
+        # Ensure existing training data is on the same device
+        self.train_X = self.train_X.to(target_device)
+        self.train_Y = self.train_Y.to(target_device)
         
         # Combine with existing training data
         new_train_X = torch.cat([self.train_X, X_flat], dim=0).cpu().numpy()
         new_train_Y = torch.cat([self.train_Y.view(-1), Y_flat], dim=0).cpu().numpy()
         
-        if update_in_place:
-            # Update this model in-place
-            if verbose:
-                print(f"Updating TabPFN model in-place: {len(self.train_X)} -> {len(new_train_X)} points")
-            
-            self.train_X = torch.tensor(new_train_X, dtype=torch.float64)
-            self.train_Y = torch.tensor(new_train_Y, dtype=torch.float64).view(-1, 1)
-            
-            # Re-fit the TabPFN model
-            self.model.fit(new_train_X, new_train_Y)
-            return self
-        else: #REMOVETHISSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
-            # Create a new model with updated data (original behavior - less efficient)
-            if verbose:
-                print(f"Creating new TabPFN model: {len(self.train_X)} -> {len(new_train_X)} points")
-                
-            return TabPFNSurrogateModel(
-                train_X=new_train_X,
-                train_Y=new_train_Y,
-                n_estimators=self.n_estimators,
-                fit_mode=self.fit_mode,
-                device=self.device
-            )
+        # Update this model in-place
+        if verbose:
+            print(f"Updating TabPFN model in-place: {len(self.train_X)} -> {len(new_train_X)} points")
+        
+        self.train_X = torch.tensor(new_train_X, dtype=torch.float64, device=target_device)
+        self.train_Y = torch.tensor(new_train_Y, dtype=torch.float64, device=target_device).view(-1, 1)
+        
+        # Re-fit the TabPFN model
+        self.model.fit(new_train_X, new_train_Y)
+        return self
 
 
 class TabPFN_BO(AbstractBayesianOptimizer):
     def __init__(self, budget, n_DoE=0, acquisition_function:str="expected_improvement",
-                 random_seed:int=43, n_estimators:int=8, fit_mode:str="fit_with_cache", 
-                 device:str="cpu", **kwargs):  # Force CPU
+                 random_seed:int=43, n_estimators:int=8, temperature:float=0.9, 
+                 fit_mode:str="fit_with_cache", device:str="auto", **kwargs):
         """
         Bayesian Optimization using TabPFN as a surrogate model.
         
@@ -209,17 +208,21 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             acquisition_function: Acquisition function to use
             random_seed: Random seed for reproducibility
             n_estimators: Number of TabPFN estimators in the ensemble
+            temperature: Softmax temperature for TabPFN (affects uncertainty quantification)
             fit_mode: Mode for TabPFN fitting, one of "low_memory", "fit_preprocessors", or "fit_with_cache"
-            device: Device to use for TabPFN, forced to "cpu"
+            device: Device to use ("cpu", "cuda", or "auto" for automatic detection)
             **kwargs: Additional parameters
         """
         # Call the superclass
         super().__init__(budget, n_DoE, random_seed, **kwargs)
         
-        # TabPFN specific parameters - force CPU
+        # Determine device
+        self.device = device if device != "auto" else ("cuda" if torch.cuda.is_available() else "cpu")
+        
+        # TabPFN specific parameters
         self.n_estimators = n_estimators
+        self.temperature = temperature  # Store temperature parameter
         self.fit_mode = fit_mode
-        self.device = "cpu"  # Force CPU
         
         # Set up the acquisition function
         self.__acq_func = None
@@ -292,7 +295,7 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             X_new = new_x
             Y_new = torch.tensor([new_f_eval], dtype=torch.float64).view(1, 1)
             # Using in-place update significantly improves performance by avoiding recreating the model
-            self.__model_obj.condition_on_observations(X=X_new, Y=Y_new, update_in_place=True, verbose=self.verbose)
+            self.__model_obj.condition_on_observations(X=X_new, Y=Y_new, verbose=self.verbose)
             
             # Assign new best
             self.assign_new_best()
@@ -332,13 +335,15 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             train_X=train_x,
             train_Y=train_obj,
             n_estimators=self.n_estimators,
+            temperature=self.temperature,
             fit_mode=self.fit_mode,
-            device="cpu"  # Force CPU
+            device=self.device
         )
     
     def optimize_acqf_and_get_observation(self):
         """Optimizes the acquisition function and returns a new candidate."""
-        bounds_tensor = torch.tensor(self.bounds.transpose(), dtype=torch.float64).cpu()  # Force CPU
+        device = torch.device(self.device)
+        bounds_tensor = torch.tensor(self.bounds.transpose(), dtype=torch.float64, device=device)
         
         try:
             # Print diagnostic info
@@ -349,14 +354,12 @@ class TabPFN_BO(AbstractBayesianOptimizer):
                 bounds=bounds_tensor,
                 q=1,
                 num_restarts=10,
-                raw_samples=100, #512 the standard?
+                raw_samples=512, 
             )
             
-            # Ensure shape is correct (n x d tensor where n=1) and on CPU
+            # Ensure shape is correct (n x d tensor where n=1)
             if candidates.dim() == 3:
                 candidates = candidates.squeeze(1)
-            
-            candidates = candidates.cpu()  # Ensure on CPU
             
             print(f"Acquisition function optimization SUCCEEDED with value: {acq_value.item():.6f}")
             return candidates
@@ -365,11 +368,11 @@ class TabPFN_BO(AbstractBayesianOptimizer):
             print(f"ERROR: Acquisition function optimization FAILED: {e}")
             print("Falling back to random sampling!")
             
-            # Fallback to random sampling - ensure correct shape with proper dimensionality and on CPU
+            # Fallback to random sampling - ensure correct shape with proper dimensionality
             lb = self.bounds[:, 0]
             ub = self.bounds[:, 1]
             random_point = lb + np.random.rand(self.dimension) * (ub - lb)
-            return torch.tensor(random_point.reshape(1, self.dimension), dtype=torch.float64).cpu()  # Force CPU
+            return torch.tensor(random_point.reshape(1, self.dimension), dtype=torch.float64, device=device)
     
     def set_acquisition_function_subclass(self) -> None:
         """Set the acquisition function class based on the name"""

@@ -1,0 +1,51 @@
+{
+  "start_time": "2025-06-01T13:15:16.842435",
+  "configuration": {
+    "bbob_functions": [
+      19
+    ],
+    "dimensions": [
+      20
+    ],
+    "instances": [
+      1,
+      2,
+      3
+    ],
+    "n_repetitions": 5,
+    "algorithms": [
+      "vanilla",
+      "tabpfn"
+    ],
+    "acquisition_function": "expected_improvement"
+  },
+  "results": {},
+  "end_time": "2025-06-01T14:31:13.827434",
+  "total_experiments": 30,
+  "completed_experiments": 30,
+  "total_benchmark_time_seconds": 4556.793985128403,
+  "runtime_summary": {
+    "vanilla": {
+      "total_runtime": 649.9207701683044,
+      "mean_runtime": 43.32805134455363,
+      "std_runtime": 6.682916898556125,
+      "median_runtime": 41.19892883300781,
+      "min_runtime": 38.572800159454346,
+      "max_runtime": 66.1517379283905,
+      "n_runs": 15,
+      "speedup_vs_baseline": null,
+      "speedup_vs_vanilla": 1.0
+    },
+    "tabpfn": {
+      "total_runtime": 3906.4047706127167,
+      "mean_runtime": 260.42698470751446,
+      "std_runtime": 47.896876008684615,
+      "median_runtime": 241.7427785396576,
+      "min_runtime": 239.32310962677002,
+      "max_runtime": 413.09718203544617,
+      "n_runs": 15,
+      "speedup_vs_baseline": null,
+      "speedup_vs_vanilla": 0.16637312524742917
+    }
+  }
+}

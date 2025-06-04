@@ -27,8 +27,20 @@ import json
 from datetime import datetime
 import time
 
-# Check for GPU availability
-device = "cpu"  # Force CPU usage
+### ---------------------------------------------------------------
+### DEVICE CONFIGURATION
+### ---------------------------------------------------------------
+
+# Device configuration - set to "cpu", "cuda", or "auto" for automatic detection
+DEVICE = "cuda"  # Change this to force a specific device
+
+# Check for GPU availability and configure device
+print(f"Available device: {'CUDA' if torch.cuda.is_available() else 'CPU'}")
+if DEVICE == "auto":
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+else:
+    device = DEVICE
+print(f"Using device: {device}")
 
 # IOH Experimenter libraries
 try:
@@ -46,9 +58,9 @@ except Exception as e:
 ### ---------------------------------------------------------------
 
 # BBOB functions to test (can modify this list)
-BBOB_FUNCTIONS = list(range(1, 25))  # Functions 1-24
-DIMENSIONS = [2]  # Test dimensions
-INSTANCES = [1, 2, 3]  # Problem instances
+BBOB_FUNCTIONS = [19] #list(range(1, 25))  # Functions 1-24
+DIMENSIONS = [20]  # Test dimensions
+INSTANCES = [1,2,3]  # Problem instances
 N_REPETITIONS = 5  # Number of runs with different seeds
 BASE_SEED = 42  # Base seed for reproducibility
 
@@ -57,13 +69,13 @@ ALGORITHMS = ["vanilla", "tabpfn"]
 ACQUISITION_FUNCTION = "expected_improvement"
 
 # Budget configuration (adaptive based on dimension)
-def get_budget(dimension):
+def get_budget(dimension): 
     """Calculate budget based on dimension"""
     return 10 * dimension + 50  # Budget = 10*D + 50
 
 def get_n_doe(dimension):
     """Calculate number of initial design points based on dimension"""
-    return min(2 * dimension, 20)  # Cap at 20 initial points
+    return 3 * dimension
 
 ### ---------------------------------------------------------------
 ### EXPERIMENT MANAGEMENT
@@ -85,10 +97,6 @@ class BenchmarkManager:
             for algorithm in ALGORITHMS:
                 algo_dir = dim_dir / algorithm
                 algo_dir.mkdir(exist_ok=True)
-        
-        # Create summary directory
-        self.summary_dir = self.base_output_dir / "summary_plots"
-        self.summary_dir.mkdir(exist_ok=True)
         
         # Initialize runtime tracking
         self.runtime_data = {
@@ -196,7 +204,7 @@ class BenchmarkManager:
                     print(f"  • 🐌 {1/speedup:.2f}x SLOWER than Vanilla GP")
 
 def run_single_optimization(algorithm, problem_id, dimension, instance, repetition, 
-                          output_dir, fit_mode="fit_with_cache"):
+                          output_dir, fit_mode="fit_with_cache", device="auto"):
     """
     Run a single optimization experiment.
     
@@ -208,6 +216,7 @@ def run_single_optimization(algorithm, problem_id, dimension, instance, repetiti
         repetition: Repetition number (1-N_REPETITIONS)
         output_dir: Directory to save results
         fit_mode: TabPFN fit mode
+        device: Device to use ("cpu", "cuda", or "auto" for automatic detection)
     
     Returns:
         dict: Results summary
@@ -249,7 +258,7 @@ def run_single_optimization(algorithm, problem_id, dimension, instance, repetiti
             'random_seed': seed,
             'maximisation': False,
             'verbose': False,  # Set to False for cleaner output during benchmark
-            'device': "cpu"
+            'device': device
         }
         
         # Create optimizer based on algorithm
@@ -375,22 +384,68 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
             label=f'{algorithm_name} Mean ({len(convergence_data)} runs)'
         )
     
-    # Calculate reasonable y-axis limits from all data (same as OG_convergence.py)
+    # Calculate reasonable y-axis limits from all data with robust handling
     all_values = []
     for convergence_data in algorithm_data.values():
         for data in convergence_data:
             all_values.extend(data['best_so_far'])
     
-    y_min = min(all_values)
-    y_max = max(all_values)
+    if not all_values:
+        print(f"Warning: No data for plotting function {problem_id}")
+        plt.close(fig)
+        return None
     
-    # Add some padding in log space (same as OG_convergence.py)
-    log_range = np.log10(y_max) - np.log10(y_min)
-    y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
-    y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
+    # Filter out non-positive values for log scale and handle edge cases
+    positive_values = [v for v in all_values if v > 0]
+    
+    if not positive_values:
+        print(f"Warning: No positive values for log scale plotting for function {problem_id}")
+        # Use linear scale instead
+        ax.set_yscale('linear')
+        y_min = min(all_values)
+        y_max = max(all_values)
+        # Add some padding
+        y_range = y_max - y_min
+        if y_range == 0:
+            y_range = abs(y_max) * 0.1 if y_max != 0 else 1.0
+        y_min = y_min - 0.1 * y_range
+        y_max = y_max + 0.1 * y_range
+    else:
+        # Use log scale with robust limit calculation
+        y_min = min(positive_values)
+        y_max = max(positive_values)
+        
+        # Handle case where y_min == y_max
+        if y_min == y_max:
+            y_min = y_min * 0.1 if y_min > 0 else 1e-10
+            y_max = y_max * 10.0 if y_max > 0 else 1.0
+        
+        # Add some padding in log space (same as OG_convergence.py but with safety checks)
+        try:
+            log_range = np.log10(y_max) - np.log10(y_min)
+            if np.isfinite(log_range) and log_range > 0:
+                y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
+                y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
+            else:
+                # Fallback: use simple multiplicative padding
+                y_min = y_min * 0.5
+                y_max = y_max * 2.0
+        except (ValueError, ZeroDivisionError):
+            # Fallback for any numerical issues
+            y_min = y_min * 0.5
+            y_max = y_max * 2.0
+    
+    # Final safety check for valid limits
+    if not (np.isfinite(y_min) and np.isfinite(y_max) and y_min < y_max):
+        print(f"Warning: Invalid axis limits for function {problem_id}, using default")
+        y_min, y_max = ax.get_ylim()  # Use matplotlib's default
     
     # Set axis limits
-    ax.set_ylim(y_min, y_max)
+    try:
+        ax.set_ylim(y_min, y_max)
+    except ValueError as e:
+        print(f"Warning: Could not set axis limits for function {problem_id}: {e}")
+        # Let matplotlib handle the limits automatically
     
     # Customize plot (same as OG_convergence.py)
     ax.set_title(f"Multi-Algorithm Comparison - Problem {problem_id}, Dimension {dimension}")
@@ -552,7 +607,8 @@ def run_benchmark():
                                 dimension=dimension,
                                 instance=instance,
                                 repetition=repetition,
-                                output_dir=dim_dir / algorithm
+                                output_dir=dim_dir / algorithm,
+                                device=device
                             )
                             
                             completed_experiments += 1
