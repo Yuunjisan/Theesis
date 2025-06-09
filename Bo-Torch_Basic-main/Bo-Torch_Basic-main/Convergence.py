@@ -32,7 +32,7 @@ import time
 ### ---------------------------------------------------------------
 
 # Device configuration - set to "cpu", "cuda", or "auto" for automatic detection
-DEVICE = "cuda"  # Change this to force a specific device
+DEVICE = "cpu"  # Change this to force a specific device
 
 # Check for GPU availability and configure device
 print(f"Available device: {'CUDA' if torch.cuda.is_available() else 'CPU'}")
@@ -59,7 +59,7 @@ except Exception as e:
 
 # BBOB functions to test (can modify this list)
 BBOB_FUNCTIONS = [19] #list(range(1, 25))  # Functions 1-24
-DIMENSIONS = [20]  # Test dimensions
+DIMENSIONS = [10]  # Test dimensions
 INSTANCES = [1,2,3]  # Problem instances
 N_REPETITIONS = 5  # Number of runs with different seeds
 BASE_SEED = 42  # Base seed for reproducibility
@@ -71,7 +71,7 @@ ACQUISITION_FUNCTION = "expected_improvement"
 # Budget configuration (adaptive based on dimension)
 def get_budget(dimension): 
     """Calculate budget based on dimension"""
-    return 10 * dimension + 50  # Budget = 10*D + 50
+    return 10 * dimension  # Budget = 10*D + 50
 
 def get_n_doe(dimension):
     """Calculate number of initial design points based on dimension"""
@@ -268,7 +268,8 @@ def run_single_optimization(algorithm, problem_id, dimension, instance, repetiti
             optimizer = TabPFN_BO(
                 **common_params,
                 n_estimators=8,  # Conservative for large benchmark
-                fit_mode=fit_mode
+                fit_mode=fit_mode,
+                temperature=0.9
             )
         else:
             raise ValueError(f"Unknown algorithm: {algorithm}")
@@ -338,102 +339,144 @@ def process_dat_file(file_path):
     
     return run_data
 
-def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, save_path):
+def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, save_path, optimal_value=None):
     """
     Plot comparison between algorithms for a specific function and dimension.
-    Shows only mean convergence curves (no individual runs).
-    Matches the exact format of plot_multi_algorithm_comparison from OG_convergence.py.
+    Shows mean convergence curves with standard error bands and regret-based y-axis.
     """
     plt.clf()
     plt.close('all')
     
-    # Create new figure with specific DPI (same as OG_convergence.py)
-    fig = plt.figure(figsize=(12, 7), dpi=100)
+    # Set up matplotlib for high-quality plots
+    plt.rcParams.update({
+        'font.size': 12,
+        'axes.titlesize': 14,
+        'axes.labelsize': 12,
+        'xtick.labelsize': 11,
+        'ytick.labelsize': 11,
+        'legend.fontsize': 11,
+        'figure.titlesize': 16,
+        'lines.linewidth': 2.5,
+        'lines.markersize': 6
+    })
+    
+    # Create new figure with larger size for better readability
+    fig = plt.figure(figsize=(14, 8), dpi=100)
     ax = fig.add_subplot(111)
     
     # Set y-axis to log scale
     ax.set_yscale('log')
     
-    # Define colors for different algorithms (same as OG_convergence.py)
-    colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown', 'pink', 'gray']
+    # Define custom colors and distinct line styles
+    algorithm_styles = {
+        'Vanilla BO': {'color': '#015ee8', 'linestyle': '-'},      # Custom blue
+        'TabPFN BO': {'color': '#e80101', 'linestyle': '--'}       # Custom red
+    }
     
-    # Prepare algorithm data in same format as OG_convergence.py
+    # Prepare algorithm data
     algorithm_data = {}
     if vanilla_data:
         algorithm_data["Vanilla BO"] = vanilla_data
     if tabpfn_data:
         algorithm_data["TabPFN BO"] = tabpfn_data
     
-    # Plot each algorithm (same logic as OG_convergence.py)
-    for i, (algorithm_name, convergence_data) in enumerate(algorithm_data.items()):
-        # Calculate mean values (exact same as OG_convergence.py)
+    # Get optimal value if not provided - estimate from best achieved value
+    if optimal_value is None:
+        all_best_values = []
+        for convergence_data in algorithm_data.values():
+            for data in convergence_data:
+                all_best_values.extend(data['best_so_far'])
+        optimal_value = min(all_best_values) if all_best_values else 0.0
+        print(f"Warning: No optimal value provided for function {problem_id}. Using best achieved: {optimal_value:.6e}")
+    
+    # Plot each algorithm with regret and standard error
+    for algorithm_name, convergence_data in algorithm_data.items():
+        if algorithm_name not in algorithm_styles:
+            continue  # Skip if style not defined
+            
+        # Calculate regret values for each run
         max_length = max(len(data['best_so_far']) for data in convergence_data)
-        mean_values = []
+        regret_matrix = []
         
-        for j in range(max_length):
-            values_at_j = [data['best_so_far'][j] if j < len(data['best_so_far']) else data['best_so_far'][-1] 
-                          for data in convergence_data]
-            mean_values.append(np.mean(values_at_j))
+        for data in convergence_data:
+            # Convert best_so_far to regret (best_so_far - optimal_value)
+            regret_values = [max(val - optimal_value, 1e-12) for val in data['best_so_far']]
+            # Pad shorter runs with the last value
+            while len(regret_values) < max_length:
+                regret_values.append(regret_values[-1])
+            regret_matrix.append(regret_values)
         
-        # Plot mean curve (exact same as OG_convergence.py)
+        regret_matrix = np.array(regret_matrix)
+        
+        # Calculate mean and standard error
+        mean_regret = np.mean(regret_matrix, axis=0)
+        std_regret = np.std(regret_matrix, axis=0)
+        n_runs = len(convergence_data)
+        se_regret = std_regret / np.sqrt(n_runs)  # Standard error
+        
+        x_vals = np.array(range(1, max_length + 1))
+        style = algorithm_styles[algorithm_name]
+        
+        # Add standard error bands first (so they appear behind the line)
+        ax.fill_between(
+            x_vals,
+            mean_regret - se_regret,
+            mean_regret + se_regret,
+            color=style['color'],
+            alpha=0.25,
+            zorder=1
+        )
+        
+        # Plot mean curve
         ax.plot(
-            range(1, max_length + 1), 
-            mean_values, 
-            color=colors[i % len(colors)],
-            linewidth=2.5,
-            label=f'{algorithm_name} Mean ({len(convergence_data)} runs)'
+            x_vals, 
+            mean_regret, 
+            color=style['color'],
+            linestyle=style['linestyle'],
+            linewidth=3.0,
+            label=f'{algorithm_name} (n={n_runs})',
+            zorder=2
         )
     
-    # Calculate reasonable y-axis limits from all data with robust handling
-    all_values = []
+    # Calculate reasonable y-axis limits from regret data with robust handling
+    all_regret_values = []
     for convergence_data in algorithm_data.values():
         for data in convergence_data:
-            all_values.extend(data['best_so_far'])
+            regret_values = [max(val - optimal_value, 1e-12) for val in data['best_so_far']]
+            all_regret_values.extend(regret_values)
     
-    if not all_values:
+    if not all_regret_values:
         print(f"Warning: No data for plotting function {problem_id}")
         plt.close(fig)
         return None
     
-    # Filter out non-positive values for log scale and handle edge cases
-    positive_values = [v for v in all_values if v > 0]
+    # Handle y-axis limits for regret (all values should be positive for log scale)
+    y_min = min(all_regret_values)
+    y_max = max(all_regret_values)
     
-    if not positive_values:
-        print(f"Warning: No positive values for log scale plotting for function {problem_id}")
-        # Use linear scale instead
-        ax.set_yscale('linear')
-        y_min = min(all_values)
-        y_max = max(all_values)
-        # Add some padding
-        y_range = y_max - y_min
-        if y_range == 0:
-            y_range = abs(y_max) * 0.1 if y_max != 0 else 1.0
-        y_min = y_min - 0.1 * y_range
-        y_max = y_max + 0.1 * y_range
-    else:
-        # Use log scale with robust limit calculation
-        y_min = min(positive_values)
-        y_max = max(positive_values)
-        
-        # Handle case where y_min == y_max
-        if y_min == y_max:
-            y_min = y_min * 0.1 if y_min > 0 else 1e-10
-            y_max = y_max * 10.0 if y_max > 0 else 1.0
-        
-        # Add some padding in log space (same as OG_convergence.py but with safety checks)
-        try:
-            log_range = np.log10(y_max) - np.log10(y_min)
-            if np.isfinite(log_range) and log_range > 0:
-                y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
-                y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
-            else:
-                # Fallback: use simple multiplicative padding
-                y_min = y_min * 0.5
-                y_max = y_max * 2.0
-        except (ValueError, ZeroDivisionError):
-            # Fallback for any numerical issues
+    # Ensure minimum regret is positive for log scale
+    if y_min <= 0:
+        y_min = 1e-12
+    
+    # Handle case where y_min == y_max
+    if y_min == y_max:
+        y_min = y_min * 0.1 if y_min > 0 else 1e-12
+        y_max = y_max * 10.0 if y_max > 0 else 1.0
+    
+    # Add padding in log space
+    try:
+        log_range = np.log10(y_max) - np.log10(y_min)
+        if np.isfinite(log_range) and log_range > 0:
+            y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
+            y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
+        else:
+            # Fallback: use simple multiplicative padding
             y_min = y_min * 0.5
             y_max = y_max * 2.0
+    except (ValueError, ZeroDivisionError):
+        # Fallback for any numerical issues
+        y_min = y_min * 0.5
+        y_max = y_max * 2.0
     
     # Final safety check for valid limits
     if not (np.isfinite(y_min) and np.isfinite(y_max) and y_min < y_max):
@@ -447,29 +490,75 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
         print(f"Warning: Could not set axis limits for function {problem_id}: {e}")
         # Let matplotlib handle the limits automatically
     
-    # Customize plot (same as OG_convergence.py)
-    ax.set_title(f"Multi-Algorithm Comparison - Problem {problem_id}, Dimension {dimension}")
-    ax.set_xlabel("Function Evaluations")
-    ax.set_ylabel("Best Function Value (log scale)")
-    ax.grid(True, which='both', ls='--', alpha=0.5)
-    ax.legend(loc='best')
+    # Customize plot with regret-based labels and improved styling
+    ax.set_title(f"Convergence Analysis: BBOB Function {problem_id} ({dimension}D)", 
+                fontweight='bold', pad=20)
+    ax.set_xlabel("Function Evaluations", fontweight='semibold')
+    ax.set_ylabel("Regret: f(x) - f* [log scale]", fontweight='semibold')
     
-    # Adjust layout (same as OG_convergence.py)
-    fig.tight_layout(pad=2.0)
+    # Improved grid styling
+    ax.grid(True, which='major', ls='-', alpha=0.3, color='gray')
+    ax.grid(True, which='minor', ls=':', alpha=0.2, color='gray')
     
-    # Save plot (same parameters as OG_convergence.py)
-    fig.savefig(save_path, format='png', dpi=300, bbox_inches='tight', pad_inches=0.5)
+    # Format axis ticks for better readability
+    ax.tick_params(axis='both', which='major', length=6, width=1.5)
+    ax.tick_params(axis='both', which='minor', length=3, width=1)
+    
+    # Create a clean legend with better positioning
+    handles, labels = ax.get_legend_handles_labels()
+    # Keep only the main line entries (not the fill_between entries)
+    main_handles = []
+    main_labels = []
+    for handle, label in zip(handles, labels):
+        if "±SE" not in label:
+            main_labels.append(label + " (±SE)")
+            main_handles.append(handle)
+    
+    legend = ax.legend(main_handles, main_labels, 
+                      loc='upper right', 
+                      frameon=True, 
+                      fancybox=True, 
+                      shadow=True,
+                      framealpha=0.9,
+                      edgecolor='black')
+    legend.get_frame().set_linewidth(1.5)
+    
+    # Add optimal value info with better styling
+    if optimal_value is not None:
+        ax.text(0.02, 0.98, f"Global Optimum: f* = {optimal_value:.6e}", 
+                transform=ax.transAxes, 
+                verticalalignment='top',
+                fontsize=11,
+                bbox=dict(boxstyle='round,pad=0.5', 
+                         facecolor='lightblue', 
+                         alpha=0.8,
+                         edgecolor='navy',
+                         linewidth=1.5))
+    
+    # Add subtle background color and improve layout
+    ax.set_facecolor('#fafafa')  # Very light gray background
+    
+    # Adjust layout with more padding
+    fig.tight_layout(pad=3.0)
+    
+    # Save plot with high quality
+    fig.savefig(save_path, format='png', dpi=300, bbox_inches='tight', 
+                pad_inches=0.3, facecolor='white', edgecolor='none')
     plt.close(fig)
     
-    # Print summary statistics for all algorithms (same as OG_convergence.py)
-    print("\nComparison of final values across algorithms:")
-    for algorithm_name, convergence_data in algorithm_data.items():
-        final_values = [data['best_so_far'][-1] for data in convergence_data]
-        print(f"{algorithm_name:20}: {np.mean(final_values):.6e} ± {np.std(final_values):.6e}")
+    # Reset matplotlib parameters to default
+    plt.rcParams.update(plt.rcParamsDefault)
     
-    print(f"    📈 Multi-algorithm comparison plot saved: {save_path.name}")
+    # Print summary statistics for regret across algorithms
+    print("\nComparison of final regret across algorithms:")
+    for algorithm_name, convergence_data in algorithm_data.items():
+        final_regrets = [max(data['best_so_far'][-1] - optimal_value, 1e-12) for data in convergence_data]
+        print(f"{algorithm_name:20}: {np.mean(final_regrets):.6e} ± {np.std(final_regrets):.6e}")
+    
+    print(f"    📈 Regret-based comparison plot saved: {save_path.name}")
     
     return fig
+
 
 def plot_runtime_comparison(benchmark_manager, save_dir):
     """Create runtime comparison plots"""
@@ -623,7 +712,7 @@ def run_benchmark():
             
             # Create comparison plot for this function and dimension using .dat files
             if True:  # Always try to create plots from .dat files
-                # Process .dat files from both algorithms (same as OG_convergence.py)
+                # Process .dat files from both algorithms
                 vanilla_data = []
                 tabpfn_data = []
                 
@@ -652,13 +741,23 @@ def run_benchmark():
                             print(f"Error processing tabpfn .dat file {dat_file}: {e}")
                 
                 if vanilla_data or tabpfn_data:
-                    plot_path = dim_dir / f"function_{problem_id:02d}_comparison.png"
+                    # Get optimal value from problem instance
+                    try:
+                        temp_problem = get_problem(problem_id, instance=1, dimension=dimension)
+                        optimal_value = temp_problem.optimum.y
+                        print(f"Using optimal value for function {problem_id}: {optimal_value:.6e}")
+                    except Exception as e:
+                        print(f"Could not get optimal value for function {problem_id}: {e}")
+                        optimal_value = None
+                    
+                    plot_path = dim_dir / f"function_{problem_id:02d}_regret_comparison.png"
                     plot_function_comparison(
                         vanilla_data=vanilla_data,
                         tabpfn_data=tabpfn_data,
                         problem_id=problem_id,
                         dimension=dimension,
-                        save_path=plot_path
+                        save_path=plot_path,
+                        optimal_value=optimal_value
                     )
             
             # Progress update

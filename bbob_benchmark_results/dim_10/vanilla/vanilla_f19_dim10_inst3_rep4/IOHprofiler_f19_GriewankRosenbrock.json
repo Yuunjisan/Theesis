@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 19, 
+	"function_name": "GriewankRosenbrock", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 19, Dim 10, Instance 3, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 10,
+		"path": "data_f19_GriewankRosenbrock/IOHprofiler_f19_DIM10.dat",
+		"runs": [
+			{"instance": 3, "evals": 100, "best": {"evals": 78, "y": 9.55587582434937, "x": [3.086244286319146, 0.9766031672412648, 3.654644100544393, -1.035256018267314, 0.07893580549803764, -1.4828909995623472, 2.5565272726639274, -1.1446709949876277, -0.1891960106742956, -1.7306177857072003]}}
+		]}
+	]
+}

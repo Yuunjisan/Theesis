@@ -86,9 +86,14 @@ def generate_gp_plot(n_samples, alpha, xi, fi, save_dir):
 # Create plots directory
 plots_dir = ensure_dir("gp_plots")
 
+# Set seed for reproducible training point generation
+seed = 42  # Can be changed to any integer for different random samples
+np.random.seed(seed)
+print(f"Using seed {seed} for training point generation")
+
 # Generate plots for different sample sizes and noise values
-sample_sizes = [5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20]
-noise_values = [1]  # Small, medium, and large noise values
+sample_sizes = [10]
+noise_values = [0.250,0.500,0.750,1,1.250,1.5,2]  # Small, medium, and large noise values
 
 results = {}
 for n_samples in sample_sizes:

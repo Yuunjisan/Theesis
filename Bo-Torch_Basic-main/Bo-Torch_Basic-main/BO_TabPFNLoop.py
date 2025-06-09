@@ -522,7 +522,7 @@ if __name__ == "__main__":
         # For single visualization run
         run_1d_tabpfn_visualization_bo(
             acquisition_function=acq_func,
-            budget=25,
-            n_DoE=4,
+            budget=10,
+            n_DoE=3,
             n_estimators=8
         )

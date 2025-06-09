@@ -1,11 +1,11 @@
 {
-  "start_time": "2025-06-01T13:15:16.842435",
+  "start_time": "2025-06-07T19:52:27.318044",
   "configuration": {
     "bbob_functions": [
       19
     ],
     "dimensions": [
-      20
+      10
     ],
     "instances": [
       1,
@@ -20,32 +20,32 @@
     "acquisition_function": "expected_improvement"
   },
   "results": {},
-  "end_time": "2025-06-01T14:31:13.827434",
+  "end_time": "2025-06-07T21:09:34.382672",
   "total_experiments": 30,
   "completed_experiments": 30,
-  "total_benchmark_time_seconds": 4556.793985128403,
+  "total_benchmark_time_seconds": 4626.804415464401,
   "runtime_summary": {
     "vanilla": {
-      "total_runtime": 649.9207701683044,
-      "mean_runtime": 43.32805134455363,
-      "std_runtime": 6.682916898556125,
-      "median_runtime": 41.19892883300781,
-      "min_runtime": 38.572800159454346,
-      "max_runtime": 66.1517379283905,
+      "total_runtime": 236.0955855846405,
+      "mean_runtime": 15.7397057056427,
+      "std_runtime": 2.003853828612775,
+      "median_runtime": 15.27745270729065,
+      "min_runtime": 14.118926525115967,
+      "max_runtime": 22.245314121246338,
       "n_runs": 15,
       "speedup_vs_baseline": null,
       "speedup_vs_vanilla": 1.0
     },
     "tabpfn": {
-      "total_runtime": 3906.4047706127167,
-      "mean_runtime": 260.42698470751446,
-      "std_runtime": 47.896876008684615,
-      "median_runtime": 241.7427785396576,
-      "min_runtime": 239.32310962677002,
-      "max_runtime": 413.09718203544617,
+      "total_runtime": 4390.085746049881,
+      "mean_runtime": 292.67238306999207,
+      "std_runtime": 29.217487264739304,
+      "median_runtime": 286.49806094169617,
+      "min_runtime": 261.8160092830658,
+      "max_runtime": 353.58669328689575,
       "n_runs": 15,
       "speedup_vs_baseline": null,
-      "speedup_vs_vanilla": 0.16637312524742917
+      "speedup_vs_vanilla": 0.0537792651993358
     }
   }
 }
