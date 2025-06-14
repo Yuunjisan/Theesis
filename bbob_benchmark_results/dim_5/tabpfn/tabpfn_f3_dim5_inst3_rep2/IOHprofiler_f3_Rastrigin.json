@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 3, 
+	"function_name": "Rastrigin", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 3, Dim 5, Instance 3, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f3_Rastrigin/IOHprofiler_f3_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 40, "y": 62.5872244942142, "x": [-3.18858889862895, -4.577385680750012, -0.6178332027047873, 2.655803933739662, -3.5250950045883656]}}
+		]}
+	]
+}

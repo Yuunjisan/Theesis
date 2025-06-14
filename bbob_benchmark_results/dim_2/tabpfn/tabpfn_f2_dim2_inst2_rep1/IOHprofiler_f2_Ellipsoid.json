@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 2, 
+	"function_name": "Ellipsoid", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 2, Dim 2, Instance 2, Rep 1"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 2,
+		"path": "data_f2_Ellipsoid/IOHprofiler_f2_DIM2.dat",
+		"runs": [
+			{"instance": 2, "evals": 20, "best": {"evals": 16, "y": 2521.293060936755, "x": [3.89703162945807, 2.573415292426944]}}
+		]}
+	]
+}

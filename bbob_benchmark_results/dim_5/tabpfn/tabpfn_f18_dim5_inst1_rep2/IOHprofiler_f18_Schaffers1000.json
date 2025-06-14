@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 18, 
+	"function_name": "Schaffers1000", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 18, Dim 5, Instance 1, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f18_Schaffers1000/IOHprofiler_f18_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 48, "y": 34.8642620722145, "x": [4.9713031854480505, 2.5126598309725523, -2.6577266957610846, 4.766405466943979, 0.23806946352124214]}}
+		]}
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 14, 
+	"function_name": "DifferentPowers", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 14, Dim 5, Instance 1, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f14_DifferentPowers/IOHprofiler_f14_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 40, "y": 4.393441675094432, "x": [2.447289889678359, -3.618509881198406, 2.1309689339250326, -2.8617314528673887, -0.25814144872128963]}}
+		]}
+	]
+}

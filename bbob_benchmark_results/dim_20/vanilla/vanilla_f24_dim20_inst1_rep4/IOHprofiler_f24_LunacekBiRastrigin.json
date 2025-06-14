@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 24, 
+	"function_name": "LunacekBiRastrigin", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 24, Dim 20, Instance 1, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 20,
+		"path": "data_f24_LunacekBiRastrigin/IOHprofiler_f24_DIM20.dat",
+		"runs": [
+			{"instance": 1, "evals": 200, "best": {"evals": 152, "y": 347.69636341634913, "x": [-0.4229310713708401, -1.7532533127814531, -3.7224537320435047, 2.535192370414734, -0.39559866301715374, -1.6261645779013634, -1.891047665849328, -3.627474792301655, -2.4333172291517258, 2.5734549574553967, -0.2993473410606384, -3.1973563507199287, 0.34438946284353733, -1.716964105144143, -2.7138243056833744, 1.3345248717814684, -1.8877864442765713, -3.763937233015895, 2.335926052182913, 1.1964596901088953]}}
+		]}
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 1, 
+	"function_name": "Sphere", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 1, Dim 5, Instance 1, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f1_Sphere/IOHprofiler_f1_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 44, "y": 1.208439845263245, "x": [-0.10087421656395389, -0.4771897369605387, -0.4742353002929095, 1.2600315459015403, -2.34160247298188]}}
+		]}
+	]
+}

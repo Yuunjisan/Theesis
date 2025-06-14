@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 3, 
+	"function_name": "Rastrigin", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 3, Dim 5, Instance 3, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f3_Rastrigin/IOHprofiler_f3_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 42, "y": 46.83415869888387, "x": [-2.384592094367317, 0.6897930397253937, 1.3088910081893435, 1.4313089849881344, -2.984159365743644]}}
+		]}
+	]
+}

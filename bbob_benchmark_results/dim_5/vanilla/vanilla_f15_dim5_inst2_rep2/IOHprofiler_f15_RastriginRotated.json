@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 15, 
+	"function_name": "RastriginRotated", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 15, Dim 5, Instance 2, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f15_RastriginRotated/IOHprofiler_f15_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 36, "y": 51.05598368724918, "x": [-0.8895220583668838, -2.0511793088777353, -0.46036877470516635, -4.3120001005795965, -1.7045239832970747]}}
+		]}
+	]
+}

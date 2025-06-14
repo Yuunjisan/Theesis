@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 5, 
+	"function_name": "LinearSlope", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 5, Dim 5, Instance 3, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f5_LinearSlope/IOHprofiler_f5_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 24, "y": 6.25246406091329, "x": [-3.7147307209670544, -4.465504912659526, -4.7774203307926655, 4.880125634372234, -4.73612486384809]}}
+		]}
+	]
+}

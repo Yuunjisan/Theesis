@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 18, 
+	"function_name": "Schaffers1000", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 18, Dim 5, Instance 3, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f18_Schaffers1000/IOHprofiler_f18_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 50, "y": 17.145902939339177, "x": [-4.440432431752396, 3.131172239884564, -0.6189569012735747, 1.1956101319450192, 3.0527465533899885]}}
+		]}
+	]
+}

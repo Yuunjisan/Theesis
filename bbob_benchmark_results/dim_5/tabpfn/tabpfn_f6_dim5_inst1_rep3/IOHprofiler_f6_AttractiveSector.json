@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 6, 
+	"function_name": "AttractiveSector", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 6, Dim 5, Instance 1, Rep 3"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f6_AttractiveSector/IOHprofiler_f6_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 19, "y": 64.72251614159065, "x": [-0.17014037817716599, 3.4420769568532705, 4.340191716328263, 4.487589783966541, -4.9942410085350275]}}
+		]}
+	]
+}

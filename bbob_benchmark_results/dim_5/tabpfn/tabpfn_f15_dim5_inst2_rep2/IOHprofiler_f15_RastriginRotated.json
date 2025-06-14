@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 15, 
+	"function_name": "RastriginRotated", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 15, Dim 5, Instance 2, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f15_RastriginRotated/IOHprofiler_f15_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 30, "y": 81.70589433841016, "x": [-0.41939004324376583, -3.0167167261242867, -3.1709801219403744, -0.39341012947261333, -3.928683940321207]}}
+		]}
+	]
+}

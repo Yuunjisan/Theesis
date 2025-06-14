@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 19, 
+	"function_name": "GriewankRosenbrock", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 19, Dim 20, Instance 3, Rep 3"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 20,
+		"path": "data_f19_GriewankRosenbrock/IOHprofiler_f19_DIM20.dat",
+		"runs": [
+			{"instance": 3, "evals": 200, "best": {"evals": 195, "y": 18.459732490983267, "x": [2.696483749896288, -0.9197451453655958, 0.3813658282160759, -3.2242162991315126, 2.278882833197713, 1.5062909293919802, 1.1855009570717812, 0.5614931043237448, -2.1696412563323975, 0.8888992853462696, 0.6642353907227516, 0.5261093005537987, -2.038122545927763, -0.3672080300748348, -4.831094890832901, 0.20141836255788803, 1.6231941245496273, 2.67218385823071, -0.8659096900373697, -0.9745263215154409]}}
+		]}
+	]
+}

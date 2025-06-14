@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 7, 
+	"function_name": "StepEllipsoid", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 7, Dim 5, Instance 2, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f7_StepEllipsoid/IOHprofiler_f7_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 21, "y": 36.57492014353375, "x": [3.454943345859647, -3.362237960100174, 4.902050690725446, -2.154189506545663, -2.2775579802691936]}}
+		]}
+	]
+}

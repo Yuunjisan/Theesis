@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 1, 
+	"function_name": "Sphere", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 1, Dim 5, Instance 2, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f1_Sphere/IOHprofiler_f1_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 48, "y": 1.1335867005418394, "x": [-3.416255870833993, -2.7693024463951588, -2.8866348415613174, 3.827090710401535, 1.063331300392747]}}
+		]}
+	]
+}

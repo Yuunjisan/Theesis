@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 4, 
+	"function_name": "BuecheRastrigin", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 4, Dim 5, Instance 1, Rep 3"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f4_BuecheRastrigin/IOHprofiler_f4_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 43, "y": 136.50713384425646, "x": [-1.9386839121580124, 1.5824094507843256, 1.9316896330565214, 4.547072807326913, 2.2712778206914663]}}
+		]}
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 20, 
+	"function_name": "Schwefel", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 20, Dim 5, Instance 3, Rep 1"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f20_Schwefel/IOHprofiler_f20_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 47, "y": 4.178782794091943, "x": [-1.0096061388851094, -0.7974559271792934, 1.6837961960176295, 0.7432312925334679, 2.166428473180557]}}
+		]}
+	]
+}

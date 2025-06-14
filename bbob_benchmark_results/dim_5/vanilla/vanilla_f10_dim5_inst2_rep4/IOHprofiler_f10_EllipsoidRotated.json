@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 10, 
+	"function_name": "EllipsoidRotated", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 10, Dim 5, Instance 2, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f10_EllipsoidRotated/IOHprofiler_f10_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 48, "y": 113554.1209857559, "x": [-3.2886380321881115, 3.479658256539341, 0.6471195046350146, 0.4302369146556673, -1.9419424401336918]}}
+		]}
+	]
+}

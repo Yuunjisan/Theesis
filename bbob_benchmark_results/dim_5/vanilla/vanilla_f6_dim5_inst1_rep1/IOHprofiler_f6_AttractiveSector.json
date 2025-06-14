@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 6, 
+	"function_name": "AttractiveSector", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 6, Dim 5, Instance 1, Rep 1"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f6_AttractiveSector/IOHprofiler_f6_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 40, "y": 116.87316341208819, "x": [-2.6595549189021996, 1.9728081555285477, 2.309455816836273, -2.3559645201883757, -4.829790117507311]}}
+		]}
+	]
+}

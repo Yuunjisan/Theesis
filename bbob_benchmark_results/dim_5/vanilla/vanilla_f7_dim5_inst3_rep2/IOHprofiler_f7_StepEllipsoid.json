@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 7, 
+	"function_name": "StepEllipsoid", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 7, Dim 5, Instance 3, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f7_StepEllipsoid/IOHprofiler_f7_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 46, "y": 23.762844753412082, "x": [3.395452210851016, -0.08591340457125854, 3.9953620152486335, -0.6777778298692806, 2.8126453007771963]}}
+		]}
+	]
+}

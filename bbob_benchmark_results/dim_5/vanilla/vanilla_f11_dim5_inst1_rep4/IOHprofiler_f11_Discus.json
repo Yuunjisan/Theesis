@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 11, 
+	"function_name": "Discus", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 11, Dim 5, Instance 1, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f11_Discus/IOHprofiler_f11_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 50, "y": 97.78026083498557, "x": [3.5829885412166007, -3.199392493843321, -4.600550779728811, -3.652712508813961, 3.12161691701451]}}
+		]}
+	]
+}

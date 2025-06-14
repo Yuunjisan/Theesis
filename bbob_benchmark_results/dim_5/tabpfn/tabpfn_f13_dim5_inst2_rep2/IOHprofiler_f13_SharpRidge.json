@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 13, 
+	"function_name": "SharpRidge", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 13, Dim 5, Instance 2, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f13_SharpRidge/IOHprofiler_f13_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 50, "y": 171.5972166975898, "x": [1.4459939394146204, 2.2693360690027475, -4.573451261967421, -4.196689026430249, 2.6017525047063828]}}
+		]}
+	]
+}

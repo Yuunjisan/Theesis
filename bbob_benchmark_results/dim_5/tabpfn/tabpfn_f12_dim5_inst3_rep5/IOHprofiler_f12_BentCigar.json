@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 12, 
+	"function_name": "BentCigar", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 12, Dim 5, Instance 3, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f12_BentCigar/IOHprofiler_f12_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 9, "y": 9437022.511904268, "x": [-1.658874377349088, -1.8343824080355686, -4.718521912053852, -0.8608956173496995, -2.9426762677856817]}}
+		]}
+	]
+}

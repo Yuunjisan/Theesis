@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 14, 
+	"function_name": "DifferentPowers", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 14, Dim 5, Instance 1, Rep 1"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f14_DifferentPowers/IOHprofiler_f14_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 46, "y": 6.422205956384605, "x": [-4.051391885542354, -0.5473699252234351, 3.0579978368815177, 0.596129882161975, -1.9625555062447224]}}
+		]}
+	]
+}

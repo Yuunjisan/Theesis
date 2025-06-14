@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 8, 
+	"function_name": "Rosenbrock", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 8, Dim 5, Instance 1, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f8_Rosenbrock/IOHprofiler_f8_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 41, "y": 346.7336460457383, "x": [-0.8996456861495972, -1.014763293787837, -1.1970493663102388, -0.7790346164256334, -1.6594852413982153]}}
+		]}
+	]
+}

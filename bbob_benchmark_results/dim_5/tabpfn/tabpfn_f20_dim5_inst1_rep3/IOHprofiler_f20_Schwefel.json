@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 20, 
+	"function_name": "Schwefel", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 20, Dim 5, Instance 1, Rep 3"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f20_Schwefel/IOHprofiler_f20_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 36, "y": 4.379177372163934, "x": [-0.725339837372303, 2.28802646510303, 1.0796137992292643, -1.531317513436079, 0.9745129104703665]}}
+		]}
+	]
+}

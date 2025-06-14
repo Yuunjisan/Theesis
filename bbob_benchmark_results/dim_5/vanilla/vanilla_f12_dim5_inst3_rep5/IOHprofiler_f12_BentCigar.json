@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 12, 
+	"function_name": "BentCigar", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 12, Dim 5, Instance 3, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f12_BentCigar/IOHprofiler_f12_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 42, "y": 8522438.08422903, "x": [-1.072769647735358, -2.161967386805155, -3.7423572418207605, -0.4201129496802449, -3.0458916331608306]}}
+		]}
+	]
+}

@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 11, 
+	"function_name": "Discus", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 11, Dim 5, Instance 2, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f11_Discus/IOHprofiler_f11_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 46, "y": 85.47586877779325, "x": [4.00300026871264, 4.049955224618316, -4.881035182625055, -4.5769633166491985, -2.4414323829114437]}}
+		]}
+	]
+}

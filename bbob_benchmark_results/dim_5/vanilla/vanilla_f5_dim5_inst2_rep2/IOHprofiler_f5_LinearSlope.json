@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 5, 
+	"function_name": "LinearSlope", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 5, Dim 5, Instance 2, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f5_LinearSlope/IOHprofiler_f5_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 50, "y": 41.5767928362674, "x": [3.8166609828793043, 3.681481066831433, -3.7780829609379607, 1.480009307674, -4.870304847165033]}}
+		]}
+	]
+}

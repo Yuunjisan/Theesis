@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 10, 
+	"function_name": "EllipsoidRotated", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 10, Dim 20, Instance 3, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 20,
+		"path": "data_f10_EllipsoidRotated/IOHprofiler_f10_DIM20.dat",
+		"runs": [
+			{"instance": 3, "evals": 200, "best": {"evals": 72, "y": 1756267.0808983082, "x": [4.007956115528941, 3.9920876175165176, 0.4600032139569521, 4.303754782304168, -4.837039699777961, -4.461256926879287, 3.9641917776316404, -3.9920769073069096, -4.586881464347243, 1.4068732783198357, -1.9817123282700777, 4.645435838028789, 3.496450101956725, -1.9527701288461685, 4.706532405689359, 2.783504296094179, -4.1798819322139025, -4.012848436832428, 3.928337199613452, -3.308167289942503]}}
+		]}
+	]
+}

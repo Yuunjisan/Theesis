@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 2, 
+	"function_name": "Ellipsoid", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 2, Dim 5, Instance 3, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f2_Ellipsoid/IOHprofiler_f2_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 49, "y": 15273.08292874767, "x": [-3.59120979799519, -3.1191539272765745, 1.75315519631905, -2.5406676027662227, -2.996014010515916]}}
+		]}
+	]
+}

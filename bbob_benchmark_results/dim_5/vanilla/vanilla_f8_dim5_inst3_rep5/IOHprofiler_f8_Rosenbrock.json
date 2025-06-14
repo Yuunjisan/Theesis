@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 8, 
+	"function_name": "Rosenbrock", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 8, Dim 5, Instance 3, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f8_Rosenbrock/IOHprofiler_f8_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 44, "y": 1568.2421468189673, "x": [0.2542563228037512, -0.14216954625875497, 3.347323015851096, -1.6250991011782325, 3.8836917275606013]}}
+		]}
+	]
+}

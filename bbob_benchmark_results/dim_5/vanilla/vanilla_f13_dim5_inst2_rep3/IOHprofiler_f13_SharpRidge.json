@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 13, 
+	"function_name": "SharpRidge", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 13, Dim 5, Instance 2, Rep 3"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f13_SharpRidge/IOHprofiler_f13_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 50, "y": 144.17847394623803, "x": [2.8390955319799236, 1.9276569688984484, -3.134507284419631, -3.6962784972914324, 1.478639531782179]}}
+		]}
+	]
+}

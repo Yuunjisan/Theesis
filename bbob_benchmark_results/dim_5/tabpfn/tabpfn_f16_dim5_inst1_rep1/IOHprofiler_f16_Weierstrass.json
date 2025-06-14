@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 16, 
+	"function_name": "Weierstrass", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 16, Dim 5, Instance 1, Rep 1"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f16_Weierstrass/IOHprofiler_f16_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 29, "y": 21.301377967308266, "x": [4.882828360423446, -4.333670372143388, -0.12269765138626099, 3.014979101717472, 4.946154151111841]}}
+		]}
+	]
+}

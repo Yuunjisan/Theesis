@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 23, 
+	"function_name": "Katsuura", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 23, Dim 5, Instance 2, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f23_Katsuura/IOHprofiler_f23_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 11, "y": 2.3832519582338434, "x": [-2.707473642472912, -4.745241127495487, -2.201649991491299, 2.2229075741632407, 0.04644527922292507]}}
+		]}
+	]
+}

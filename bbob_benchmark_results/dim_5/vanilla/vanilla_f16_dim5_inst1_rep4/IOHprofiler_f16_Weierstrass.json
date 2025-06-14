@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 16, 
+	"function_name": "Weierstrass", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 16, Dim 5, Instance 1, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f16_Weierstrass/IOHprofiler_f16_DIM5.dat",
+		"runs": [
+			{"instance": 1, "evals": 50, "best": {"evals": 27, "y": 8.708371045160046, "x": [-2.891957662014092, -2.963313161721851, -3.7980948890700694, 2.5782647992834202, 1.4188047439400682]}}
+		]}
+	]
+}

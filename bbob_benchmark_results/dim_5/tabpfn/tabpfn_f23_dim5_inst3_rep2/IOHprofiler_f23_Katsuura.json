@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 23, 
+	"function_name": "Katsuura", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 23, Dim 5, Instance 3, Rep 2"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f23_Katsuura/IOHprofiler_f23_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 40, "y": 3.3949176074652416, "x": [-4.7171825636178255, -2.0376963913440704, -0.7647677976638079, 2.649143058806658, 4.843872943893075]}}
+		]}
+	]
+}

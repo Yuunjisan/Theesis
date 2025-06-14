@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 21, 
+	"function_name": "Gallagher101", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 21, Dim 5, Instance 3, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f21_Gallagher101/IOHprofiler_f21_DIM5.dat",
+		"runs": [
+			{"instance": 3, "evals": 50, "best": {"evals": 1, "y": 14.356877630870969, "x": [2.0266708729767657, -0.3496107877958634, 2.549354876501263, -1.1957730708731424, -0.9942224528107282]}}
+		]}
+	]
+}

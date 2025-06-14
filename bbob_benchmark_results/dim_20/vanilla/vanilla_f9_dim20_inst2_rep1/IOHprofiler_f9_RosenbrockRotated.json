@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 9, 
+	"function_name": "RosenbrockRotated", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 9, Dim 20, Instance 2, Rep 1"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 20,
+		"path": "data_f9_RosenbrockRotated/IOHprofiler_f9_DIM20.dat",
+		"runs": [
+			{"instance": 2, "evals": 200, "best": {"evals": 105, "y": 30029.956817539598, "x": [1.6946546200761528, 0.5594441884877048, -0.5866265560804754, -2.383107727430263, -0.9985038395231811, 1.63760482906861, 1.2254803290000236, 1.4556799231307695, 0.8348315931356151, -1.401240548647194, 2.7517047862641535, 1.5008740372464944, 0.49073300266767683, 2.3105133006573935, 2.144563014439598, 0.9984553945816423, 1.99514577155745, 2.731597097614291, 1.9905341301075454, 2.1299829337481233]}}
+		]}
+	]
+}

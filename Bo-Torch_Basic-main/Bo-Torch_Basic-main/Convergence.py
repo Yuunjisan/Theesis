@@ -32,7 +32,7 @@ import time
 ### ---------------------------------------------------------------
 
 # Device configuration - set to "cpu", "cuda", or "auto" for automatic detection
-DEVICE = "cpu"  # Change this to force a specific device
+DEVICE = "cuda"  # Change this to force a specific device
 
 # Check for GPU availability and configure device
 print(f"Available device: {'CUDA' if torch.cuda.is_available() else 'CPU'}")
@@ -58,9 +58,9 @@ except Exception as e:
 ### ---------------------------------------------------------------
 
 # BBOB functions to test (can modify this list)
-BBOB_FUNCTIONS = [19] #list(range(1, 25))  # Functions 1-24
-DIMENSIONS = [10]  # Test dimensions
-INSTANCES = [1,2,3]  # Problem instances
+BBOB_FUNCTIONS = list(range(19, 25))  # Functions 1-24
+DIMENSIONS = [40]  # Test dimensions
+INSTANCES = [1, 2, 3]  # Problem instances
 N_REPETITIONS = 5  # Number of runs with different seeds
 BASE_SEED = 42  # Base seed for reproducibility
 
@@ -71,7 +71,7 @@ ACQUISITION_FUNCTION = "expected_improvement"
 # Budget configuration (adaptive based on dimension)
 def get_budget(dimension): 
     """Calculate budget based on dimension"""
-    return 10 * dimension  # Budget = 10*D + 50
+    return 10 * dimension  # Budget = 10*D 
 
 def get_n_doe(dimension):
     """Calculate number of initial design points based on dimension"""
@@ -380,38 +380,53 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
     if tabpfn_data:
         algorithm_data["TabPFN BO"] = tabpfn_data
     
+    if not algorithm_data:
+        print(f"Warning: No data available for plotting function {problem_id}")
+        plt.close(fig)
+        return None
+    
     # Get optimal value if not provided - estimate from best achieved value
     if optimal_value is None:
+        print(f"Warning: No optimal value provided for function {problem_id}, estimating from data")
         all_best_values = []
-        for convergence_data in algorithm_data.values():
-            for data in convergence_data:
+        for algo_data in algorithm_data.values():
+            for data in algo_data:
                 all_best_values.extend(data['best_so_far'])
         optimal_value = min(all_best_values) if all_best_values else 0.0
-        print(f"Warning: No optimal value provided for function {problem_id}. Using best achieved: {optimal_value:.6e}")
+        print(f"Estimated optimal value: {optimal_value:.6e}")
     
     # Plot each algorithm with regret and standard error
-    for algorithm_name, convergence_data in algorithm_data.items():
+    for algorithm_name, algo_data in algorithm_data.items():
         if algorithm_name not in algorithm_styles:
-            continue  # Skip if style not defined
+            print(f"Warning: No style defined for {algorithm_name}, skipping")
+            continue
             
-        # Calculate regret values for each run
-        max_length = max(len(data['best_so_far']) for data in convergence_data)
+        # Calculate max length for this algorithm's data
+        max_length = max(len(data['best_so_far']) for data in algo_data)
         regret_matrix = []
         
-        for data in convergence_data:
+        # Process each run for this algorithm
+        for data in algo_data:
             # Convert best_so_far to regret (best_so_far - optimal_value)
             regret_values = [max(val - optimal_value, 1e-12) for val in data['best_so_far']]
+            
             # Pad shorter runs with the last value
-            while len(regret_values) < max_length:
-                regret_values.append(regret_values[-1])
+            if len(regret_values) < max_length:
+                last_value = regret_values[-1] if regret_values else 1e-12
+                regret_values.extend([last_value] * (max_length - len(regret_values)))
+            
             regret_matrix.append(regret_values)
         
         regret_matrix = np.array(regret_matrix)
         
+        if len(regret_matrix) == 0:
+            print(f"Warning: No valid data for {algorithm_name}")
+            continue
+        
         # Calculate mean and standard error
         mean_regret = np.mean(regret_matrix, axis=0)
         std_regret = np.std(regret_matrix, axis=0)
-        n_runs = len(convergence_data)
+        n_runs = len(algo_data)
         se_regret = std_regret / np.sqrt(n_runs)  # Standard error
         
         x_vals = np.array(range(1, max_length + 1))
@@ -433,20 +448,20 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
             mean_regret, 
             color=style['color'],
             linestyle=style['linestyle'],
-            linewidth=3.0,
+            linewidth=1.5,
             label=f'{algorithm_name} (n={n_runs})',
             zorder=2
         )
     
-    # Calculate reasonable y-axis limits from regret data with robust handling
+    # Calculate reasonable y-axis limits from regret data
     all_regret_values = []
-    for convergence_data in algorithm_data.values():
-        for data in convergence_data:
+    for algo_data in algorithm_data.values():
+        for data in algo_data:
             regret_values = [max(val - optimal_value, 1e-12) for val in data['best_so_far']]
             all_regret_values.extend(regret_values)
     
     if not all_regret_values:
-        print(f"Warning: No data for plotting function {problem_id}")
+        print(f"Warning: No regret values for plotting function {problem_id}")
         plt.close(fig)
         return None
     
@@ -470,25 +485,22 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
             y_min = 10 ** (np.log10(y_min) - 0.1 * log_range)
             y_max = 10 ** (np.log10(y_max) + 0.1 * log_range)
         else:
-            # Fallback: use simple multiplicative padding
             y_min = y_min * 0.5
             y_max = y_max * 2.0
     except (ValueError, ZeroDivisionError):
-        # Fallback for any numerical issues
         y_min = y_min * 0.5
         y_max = y_max * 2.0
     
     # Final safety check for valid limits
     if not (np.isfinite(y_min) and np.isfinite(y_max) and y_min < y_max):
         print(f"Warning: Invalid axis limits for function {problem_id}, using default")
-        y_min, y_max = ax.get_ylim()  # Use matplotlib's default
+        y_min, y_max = ax.get_ylim()
     
     # Set axis limits
     try:
         ax.set_ylim(y_min, y_max)
     except ValueError as e:
         print(f"Warning: Could not set axis limits for function {problem_id}: {e}")
-        # Let matplotlib handle the limits automatically
     
     # Customize plot with regret-based labels and improved styling
     ax.set_title(f"Convergence Analysis: BBOB Function {problem_id} ({dimension}D)", 
@@ -506,15 +518,7 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
     
     # Create a clean legend with better positioning
     handles, labels = ax.get_legend_handles_labels()
-    # Keep only the main line entries (not the fill_between entries)
-    main_handles = []
-    main_labels = []
-    for handle, label in zip(handles, labels):
-        if "±SE" not in label:
-            main_labels.append(label + " (±SE)")
-            main_handles.append(handle)
-    
-    legend = ax.legend(main_handles, main_labels, 
+    legend = ax.legend(handles, labels, 
                       loc='upper right', 
                       frameon=True, 
                       fancybox=True, 
@@ -536,7 +540,7 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
                          linewidth=1.5))
     
     # Add subtle background color and improve layout
-    ax.set_facecolor('#fafafa')  # Very light gray background
+    ax.set_facecolor('#fafafa')
     
     # Adjust layout with more padding
     fig.tight_layout(pad=3.0)
@@ -546,13 +550,10 @@ def plot_function_comparison(vanilla_data, tabpfn_data, problem_id, dimension, s
                 pad_inches=0.3, facecolor='white', edgecolor='none')
     plt.close(fig)
     
-    # Reset matplotlib parameters to default
-    plt.rcParams.update(plt.rcParamsDefault)
-    
     # Print summary statistics for regret across algorithms
     print("\nComparison of final regret across algorithms:")
-    for algorithm_name, convergence_data in algorithm_data.items():
-        final_regrets = [max(data['best_so_far'][-1] - optimal_value, 1e-12) for data in convergence_data]
+    for algorithm_name, algo_data in algorithm_data.items():
+        final_regrets = [max(data['best_so_far'][-1] - optimal_value, 1e-12) for data in algo_data]
         print(f"{algorithm_name:20}: {np.mean(final_regrets):.6e} ± {np.std(final_regrets):.6e}")
     
     print(f"    📈 Regret-based comparison plot saved: {save_path.name}")
@@ -722,9 +723,12 @@ def run_benchmark():
                     dat_files = list(vanilla_dir.rglob("*.dat"))
                     for dat_file in dat_files:
                         try:
+                            # Less strict file matching
                             if f"_f{problem_id}_" in dat_file.name:
                                 run_data = process_dat_file(dat_file)
                                 vanilla_data.append(run_data)
+                                if verbose:
+                                    print(f"Found vanilla data file: {dat_file.name}")
                         except Exception as e:
                             print(f"Error processing vanilla .dat file {dat_file}: {e}")
                 
@@ -734,9 +738,12 @@ def run_benchmark():
                     dat_files = list(tabpfn_dir.rglob("*.dat"))
                     for dat_file in dat_files:
                         try:
+                            # Less strict file matching
                             if f"_f{problem_id}_" in dat_file.name:
                                 run_data = process_dat_file(dat_file)
                                 tabpfn_data.append(run_data)
+                                if verbose:
+                                    print(f"Found tabpfn data file: {dat_file.name}")
                         except Exception as e:
                             print(f"Error processing tabpfn .dat file {dat_file}: {e}")
                 

@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 24, 
+	"function_name": "LunacekBiRastrigin", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 24, Dim 20, Instance 3, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 20,
+		"path": "data_f24_LunacekBiRastrigin/IOHprofiler_f24_DIM20.dat",
+		"runs": [
+			{"instance": 3, "evals": 200, "best": {"evals": 195, "y": 380.5429369880344, "x": [0.7503979839384556, -1.1772658955305815, 1.9289450719952583, 1.770981838926673, -0.4267492610961199, -3.0787166953086853, -0.4265919700264931, 0.5617420375347137, -1.1206866893917322, -2.273895740509033, 0.48599397763609886, 4.6124721225351095, 0.7821799255907536, -2.022047294303775, -2.34313091263175, -0.7027581054717302, -0.774982888251543, 0.437295651063323, 0.25503172539174557, 0.9252411220222712]}}
+		]}
+	]
+}

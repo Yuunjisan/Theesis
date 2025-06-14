@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 22, 
+	"function_name": "Gallagher21", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 22, Dim 5, Instance 2, Rep 3"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 5,
+		"path": "data_f22_Gallagher21/IOHprofiler_f22_DIM5.dat",
+		"runs": [
+			{"instance": 2, "evals": 50, "best": {"evals": 35, "y": 9.017206539452992, "x": [-1.9611126023052254, -2.3025014495679343, -3.6598756818630322, 2.4629496301003293, 2.3325020623615704]}}
+		]}
+	]
+}

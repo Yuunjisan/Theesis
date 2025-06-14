@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 4, 
+	"function_name": "BuecheRastrigin", 
+	"maximization": false, 
+	"algorithm": {"name": "Vanilla BO", "info": "Function 4, Dim 20, Instance 1, Rep 5"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 20,
+		"path": "data_f4_BuecheRastrigin/IOHprofiler_f4_DIM20.dat",
+		"runs": [
+			{"instance": 1, "evals": 200, "best": {"evals": 196, "y": 798.9237774084838, "x": [1.889233896508813, 0.6095020193606615, -4.9107652343809605, 2.130847191438079, 0.5244657397270203, 2.508626990020275, 0.4840152431279421, 1.8798093032091856, 1.2128127831965685, 2.244366742670536, 0.0250314362347126, -3.018803121522069, -3.1545923370867968, -0.31802479177713394, -4.635736178606749, -1.6625146474689245, -4.805822195485234, 1.6352242324501276, 0.78850032761693, 1.8607893586158752]}}
+		]}
+	]
+}

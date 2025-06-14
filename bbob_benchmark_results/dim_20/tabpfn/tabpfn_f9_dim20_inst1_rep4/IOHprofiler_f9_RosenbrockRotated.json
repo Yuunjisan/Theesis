@@ -1,0 +1,16 @@
+{
+	"version": "0.3.18", 
+	"suite": "unknown_suite", 
+	"function_id": 9, 
+	"function_name": "RosenbrockRotated", 
+	"maximization": false, 
+	"algorithm": {"name": "Tabpfn BO", "info": "Function 9, Dim 20, Instance 1, Rep 4"},
+	"attributes": ["evaluations", "raw_y", "raw_y_best"],
+	"scenarios": [
+		{"dimension": 20,
+		"path": "data_f9_RosenbrockRotated/IOHprofiler_f9_DIM20.dat",
+		"runs": [
+			{"instance": 1, "evals": 200, "best": {"evals": 170, "y": 67805.0124991863, "x": [-0.557938702404499, 3.4441255033016205, 0.4862904082983732, 0.6945810839533806, -3.8413584791123867, 1.794335450977087, 3.782401829957962, -1.379173332825303, -1.2249792739748955, 1.1025576759129763, 0.871705049648881, 0.5904864147305489, -2.1955224964767694, -2.240631077438593, 3.0945231206715107, -4.353104587644339, -2.788863154128194, 2.2958761174231768, 1.262779738754034, 2.373021235689521]}}
+		]}
+	]
+}
